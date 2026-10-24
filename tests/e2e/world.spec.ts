@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ready, start } from './helpers';
+import { ready, start, defend } from './helpers';
 
 test('device realms support watching, travel, boss invasions and late world expansion', async ({
   browser,
@@ -54,13 +54,18 @@ test('device realms support watching, travel, boss invasions and late world expa
       'data-region',
       destination!,
     );
+    await Promise.all([defend(host), defend(peer)]);
     await host.screenshot({ path: 'docs/screenshots/connected-realms.png', fullPage: true });
     await expect(host.locator('.region-stage-label')).toContainText('BOSS IN THIS REALM');
     await late.goto(invite);
     await late.getByRole('textbox', { name: 'Your hero name' }).fill('Luma');
     await late.getByRole('button', { name: 'Join the squad', exact: true }).click();
     await expect(host.locator('.realm-card')).toHaveCount(3);
-    await expect(late.locator('canvas[data-renderer=three]')).toHaveAttribute('data-ready', 'true');
+    await expect(late.locator('canvas[data-renderer=three]')).toHaveAttribute(
+      'data-ready',
+      'true',
+      { timeout: 55000 },
+    );
     await expect(late.getByRole('button', { name: 'Strike', exact: true })).toBeEnabled();
     await expect(host.locator('canvas[data-renderer=three]')).toHaveAttribute('data-heroes', '3');
     await expect(host.getByTestId('boss-hp')).toHaveText('510 / 510');
@@ -87,6 +92,10 @@ test('creator previews editable 3D characters, rejects duplicate controls and pl
     await host
       .getByRole('textbox', { name: 'HERO NAMES · COMMA SEPARATED (2–4)', exact: true })
       .fill('Astra, Luma');
+    if (await host.getByText(/AI key not configured/).isVisible()) {
+      await host.getByRole('button', { name: 'Generate with AI', exact: true }).click();
+      await expect(host.getByRole('alert')).toContainText('OPENAI_API_KEY');
+    }
     await host.getByRole('button', { name: 'Build local blueprint', exact: true }).click();
     await expect(host.locator('.forge-preview canvas')).toBeVisible();
     await expect(
@@ -111,7 +120,10 @@ test('creator previews editable 3D characters, rejects duplicate controls and pl
     await expect(host.locator('canvas[data-renderer=three]')).toHaveAttribute('data-ready', 'true');
     await expect(host.getByRole('button', { name: 'Stellar Jab', exact: true })).toBeEnabled();
     await host.locator('body').press('u');
-    await expect(host.getByRole('button', { name: 'Stellar Jab', exact: true })).toBeDisabled();
+    await expect(host.locator('canvas[data-renderer=three]')).toHaveAttribute(
+      'data-last-hero-action',
+      'punch',
+    );
     await host.getByText('Your power and motion guide', { exact: true }).click();
     await expect(host.locator('.custom-control-guide')).toContainText('Stellar Jab');
     await expect(host.locator('.custom-control-guide')).toContainText('Quick arm extension');

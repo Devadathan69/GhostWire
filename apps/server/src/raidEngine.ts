@@ -113,6 +113,7 @@ export function startRaid(s: RaidState, waitForRenderer = false): string | null 
   s.raid.maxBossHp = Math.round(s.spec.bossMaxHp * (3 + (heroes.length - 2) * 1.25));
   s.bossHp = s.raid.maxBossHp;
   for (const h of heroes) h.renderReady = !waitForRenderer || h.bot;
+  s.raid.nextRoamAt = s.clock + 2800 + 13000;
   setPhase(s, 'INTRO');
   s.renderPending = waitForRenderer;
   s.renderDeadline = waitForRenderer ? Date.now() + 60000 : null;
@@ -187,7 +188,6 @@ export function heroIntent(s: RaidState, id: string, action: Action): string | n
   else {
     h.guardUntil = 0;
     const remote = h.regionId !== s.raid.bossRegionId;
-    if (remote && action === 'kick') return 'Travel to the boss realm to use a close-range kick.';
     const warning = action === 'special' ? 1100 : remote ? 550 : action === 'kick' ? 300 : 170;
     s.pending.push({
       id: nextId(s),
@@ -603,7 +603,8 @@ export function tickRaid(s: RaidState, delta: number) {
     finish(s, true, 'Together, your squad brought down the colossus.');
     return;
   }
-  if (!Object.values(s.raid.heroes).some(alive)) {
+  // A protected reinforcement still has a living hero while its graphics load.
+  if (!Object.values(s.raid.heroes).some((h) => h.connected && !h.eliminated && h.hp > 0)) {
     finish(s, false, 'The entire squad fell. Stay together and revive your teammates.');
     return;
   }

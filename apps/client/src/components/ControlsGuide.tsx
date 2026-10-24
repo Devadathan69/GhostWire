@@ -65,7 +65,12 @@ export function ControlsGuide() {
       </p>
       {[['Hero', hero]].map(([name, rows]) => (
         <section key={name as string}>
-          <h3>{name as string} controls</h3>
+          <h3>{name as string} controls · preset defaults</h3>
+          <p>
+            Custom heroes use the keys on their power buttons. Open Your power and motion guide in
+            the fight for your exact gesture assignments, damage and recharge times. The table below
+            describes preset heroes.
+          </p>
           <div className="controls-table-wrap">
             <table>
               <thead>

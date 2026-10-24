@@ -3,7 +3,7 @@
 Use 2–4 consenting participants on the same trusted HTTPS origin. Synthetic-camera screenshots are QA evidence, not a human gameplay recording.
 
 1. Show **NO HERO WINS ALONE**. Create a curated world, invite a teammate by QR, and show that both join as heroes. The boss is AI-controlled.
-2. Ready both players and begin. Show two independently moving, differently colored 3D heroes and one shared boss health bar.
+2. Ready both players and begin. Show that each device owns a separate realm with its own 3D hero, while boss health is shared. Open the world map, watch another realm (controls pause), return to your hero and travel through a rift. The boss announces an invasion and follows occupied realms. Heroes in the same realm appear together.
 3. Land a solo hit: the Aegis blocks damage. Have the second hero strike within 2 seconds: **AEGIS BROKEN** opens the six-second attack window.
 4. Trigger Overdrive together. Show the **UNITY BURST** and shared boss damage on both screens. Defend against marked attacks; every fourth boss attack marks the squad, encouraging players to spread out.
 5. If an ally falls, move close and hold still after F / Revive to demonstrate a three-second rescue. Explain the 20-second rescue deadline and team wipe condition.
@@ -13,3 +13,5 @@ Use 2–4 consenting participants on the same trusted HTTPS origin. Synthetic-ca
 The real duration depends on coordination; do not claim a fixed 60-second finish or force an outcome. Use an uninterrupted recording only through a deliberate recording action and with participant consent. No game camera video is recorded automatically.
 
 Fallbacks: **Train with AI ally** explicitly labels Echo as an AI teammate. With no camera, show the virtual-arena label. With no API key, use a curated world. With no trusted phone connection, use independent local browser contexts. These are rehearsal alternatives, not evidence for unavailable physical features.
+
+Upgrade demonstrations: invite a third player during Arena/Reality to show their new realm and proportional boss scaling. Existing heroes keep fighting while that player loads safely. For creative generation, use **Create a world**, enter movie/character/fight details, preview and edit the blueprint, then create a lobby and choose generated heroes. Show the actual key/gesture guide. Label a local blueprint explicitly; claim AI output only after a successful real API response. Designs use procedural 3D parts and supported effects.

@@ -5,10 +5,14 @@
 3. Send the invite/QR to 1–3 teammates. Each opens it in a full browser on their phone and chooses **Join the squad**. Everyone is a hero; the AI controls the one large boss.
 4. Each teammate may enable their own camera for motion. Choose Body gestures or One hand. Hold neutral for about 1.3 seconds. Camera video stays local. Touch joystick/buttons always work.
 5. Everyone presses **I’m ready**. The squad leader selects **Begin raid**. All 3D views load before the opening countdown proceeds.
-6. Get into range and strike together. Two different heroes must hit within 2 seconds to break Aegis for 6 seconds. Coordinate both Overdrives for a Unity Burst. A lone hero does zero damage through Aegis.
+6. Each device adds its own realm. Open **World map · travel & invites** to watch/travel; standing still completes a 1.2-second crossing, then the gate recharges for 6 seconds. The boss announces invasions through the rifts. Strike from another realm fires a weaker rift bolt; Overdrive reaches across realms. Travel to the boss for Kick/full melee, and to a downed ally for a rescue. Two heroes must hit within 2 seconds to break Aegis for 6 seconds; pair Overdrives for Unity Burst.
 7. Evade the marked zones. Move toward a downed teammate, press F / their Revive button, and stay still for 3 seconds. You have 20 seconds before their elimination; being hit or moving interrupts rescue.
 8. At half boss HP, check **REALITY BREACH**. Enabled local video shows **LIVE · YOUR CAMERA** on that device. Without it, **VIRTUAL ARENA · NO LIVE CAMERA** is explicit. All heroes/attack zones remain synchronized across devices.
 9. Finish at the same Mission Passed/Failed result. The leader requests **Raid again**; every human readies again.
+
+Reinforcements may join during Arena or Reality, up to four total slots. A new device expands the map; existing heroes keep playing while the arrival's graphics load. Its hero stays protected, then becomes controllable. Share the invite from the world map.
+
+To make a custom encounter, choose **Create a world** before making the lobby. Enter movie/story, hero/boss names, fight setting, powers and desired controls. Generate with AI when the server key is configured, or explicitly build a local blueprint. Review the 3D preview, edit powers/keys/gestures and appearance, then create the lobby. Each member chooses a generated hero. The in-game power guide shows their actual controls. [Creator setup and supported generation](EXPANDING_WORLDS.md).
 
 [Exact controls and gesture timings](CONTROLS.md). Start with both devices on the same Wi-Fi. HTTPS is required for phone cameras. Use a full current Chrome/Edge/Safari browser with WebGL 2 and hardware acceleration. If a camera is denied, manual controls work immediately. A refresh privately resumes the same hero; a short disconnect pauses the squad up to 30 seconds.
 

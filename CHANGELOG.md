@@ -1,5 +1,13 @@
 # Change log
 
+## 2026-10-25T04:55:32+05:30 — Complete connected-world and creator verification
+
+- Changed: protected a living reinforcement from premature squad-wipe failure while its graphics load; reset boss roaming relative to the raid opening; reduced graphics warmup to used effects; added arrival-loading feedback and visible-region diagnostics. Honored custom boss equipment/headgear/cape and the specter cape option, avoided discarded preview weapon geometry, and clarified custom versus preset controls.
+- Validation: all 90 rules/network/creator/motion tests pass in ten files. Production build and TypeScript pass. All 11 browser scenarios passed in one combined run (7.7 minutes), including complete human-role raids, camera breach/reconnect/rematch/outcomes, four-player combat, separate realms/watch/travel/boss arrival, a third live device, editable preview/save/hero selection, no-key/duplicate-control errors and a remapped key reaching combat. Subsequent guide wording and cape-checkbox cleanup were rebuilt/typechecked; they change no tested raid mechanic.
+- Public check: the refreshed HTTPS service passed assets, invitations, private identities, solo shielding, paired damage, AI, travel and live expansion. One temporary tunnel restart failed its readiness check; retry succeeded. The verifier now crosses after a volley because real damage cancels travel as designed. Live room tokens/QR data stay ignored locally; screenshots committed here use synthetic test rooms or a non-private template preview.
+- Documentation/evidence: updated setup, phases, phone/demo/controls/verification guides, provenance and AI-assistance records; captured connected-realms, mobile expansion, creator and custom-raid evidence. Repository review found zero credential-pattern files and zero broken local Markdown links.
+- Limits: no OPENAI_API_KEY was supplied locally, so real gpt-6.1-sol generation/account access remains unverified. The playable local blueprint path is explicit. Procedural parts/effects do not create exact film meshes or new gesture detectors. Physical phones/gestures, human review, venue conditions and Docker remain separate checks. Temporary access needs an awake connected laptop.
+
 ## 2026-10-25T04:39:50+05:30 — Verify the world/creator milestone and refine playability
 
 - Validation: all 88 unit/network/creator/motion tests and TypeScript pass. The production build passed before the final server cancellation refinement, which is covered by an added regression and will be rebuilt for release. Eight original browser scenarios passed in the first run; its movement case now passes separately on the refreshed build. World/creator browser checks remain in progress.

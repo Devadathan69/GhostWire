@@ -87,10 +87,20 @@ try {
   assert.equal(h.bossHp, a.bossHp);
   assert.equal(Object.keys(h.raid.heroes).length, 2);
   assert(h.raid.targetId);
+  // Cross after the locked volley: real damage correctly cancels a crossing.
+  const incoming = h.pending.filter((a) => a.role === 'boss');
+  if (incoming.length) await sleep(Math.max(...incoming.map((a) => a.resolvesAt - h.clock)) + 250);
   await request(hero, 'world:travel', {
     regionId: h.raid.heroes[joined.session.playerId].regionId,
   });
-  await sleep(1400);
+  for (
+    let i = 0;
+    i < 30 &&
+    h.raid.heroes[room.session.playerId].regionId !==
+      h.raid.heroes[joined.session.playerId].regionId;
+    i++
+  )
+    await sleep(100);
   assert.equal(
     h.raid.heroes[room.session.playerId].regionId,
     h.raid.heroes[joined.session.playerId].regionId,

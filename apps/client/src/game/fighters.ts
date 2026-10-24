@@ -102,7 +102,7 @@ export function createHero(spec: BattleSpec, design?: HeroDesign): Fighter {
     ),
     edge = surface(look?.trimColor ?? '#a7afb0', 0.9, 0.25, 44),
     leather = surface('#171b20', 0.05, 0.82, 21),
-    cloth = surface('#263e44', 0, 0.95, 51),
+    cloth = surface(look?.bodyColor ?? '#263e44', 0, 0.95, 51),
     glow = luminous(spec.primaryColor, 0.75);
   mesh(body, new THREE.SphereGeometry(1, 24, 16), armor, [0, 1.58, 0], [0.39, 0.49, 0.25]);
   for (let i = 0; i < 3; i++)
@@ -202,29 +202,31 @@ export function createHero(spec: BattleSpec, design?: HeroDesign): Fighter {
   forearms[1].add(weapon);
   weapon.position.set(0, -0.44, 0.09);
   weapon.rotation.x = -0.15;
-  capsule(weapon, 0.035, 0.22, leather, [0, 0.05, 0]);
-  mesh(weapon, new THREE.BoxGeometry(0.43, 0.055, 0.1), edge, [0, 0.23, 0]);
-  const blade = new THREE.Shape();
-  blade.moveTo(-0.085, 0.27);
-  blade.lineTo(0.085, 0.27);
-  blade.lineTo(0.065, 1.23);
-  blade.lineTo(0, 1.48);
-  blade.lineTo(-0.065, 1.23);
-  blade.closePath();
-  mesh(
-    weapon,
-    new THREE.ExtrudeGeometry(blade, {
-      depth: 0.035,
-      bevelEnabled: true,
-      bevelThickness: 0.012,
-      bevelSize: 0.01,
-      bevelSegments: 1,
-      steps: 1,
-    }),
-    edge,
-    [0, 0, -0.015],
-  );
-  mesh(weapon, new THREE.BoxGeometry(0.016, 0.9, 0.045), glow, [0, 0.76, 0.012]);
+  if (!look || look.weapon === 'blade') {
+    capsule(weapon, 0.035, 0.22, leather, [0, 0.05, 0]);
+    mesh(weapon, new THREE.BoxGeometry(0.43, 0.055, 0.1), edge, [0, 0.23, 0]);
+    const blade = new THREE.Shape();
+    blade.moveTo(-0.085, 0.27);
+    blade.lineTo(0.085, 0.27);
+    blade.lineTo(0.065, 1.23);
+    blade.lineTo(0, 1.48);
+    blade.lineTo(-0.065, 1.23);
+    blade.closePath();
+    mesh(
+      weapon,
+      new THREE.ExtrudeGeometry(blade, {
+        depth: 0.035,
+        bevelEnabled: true,
+        bevelThickness: 0.012,
+        bevelSize: 0.01,
+        bevelSegments: 1,
+        steps: 1,
+      }),
+      edge,
+      [0, 0, -0.015],
+    );
+    mesh(weapon, new THREE.BoxGeometry(0.016, 0.9, 0.045), glow, [0, 0.76, 0.012]);
+  }
   const capeGeo = new THREE.PlaneGeometry(0.95, 1.25, 8, 10);
   capeGeo.translate(0, -0.625, 0);
   const positions = capeGeo.getAttribute('position');
@@ -238,7 +240,6 @@ export function createHero(spec: BattleSpec, design?: HeroDesign): Fighter {
   const cape = mesh(body, capeGeo, cloth, [0, 1.88, -0.19]);
   cape.visible = look?.cape ?? true;
   if (look && look.weapon !== 'blade') {
-    weapon.clear();
     if (look.weapon === 'staff') {
       capsule(weapon, 0.045, 1.8, edge, [0, 0.4, 0]);
       mesh(weapon, new THREE.IcosahedronGeometry(0.17, 1), glow, [0, 1.4, 0]);
@@ -262,7 +263,6 @@ export function createHero(spec: BattleSpec, design?: HeroDesign): Fighter {
   }
   if (look?.archetype === 'beast' || look?.archetype === 'colossus') body.scale.set(1.2, 1.08, 1.2);
   if (look?.archetype === 'specter') {
-    cape.visible = true;
     mesh(head, new THREE.TorusGeometry(0.35, 0.025, 5, 24), glow, [0, 0.4, 0]).rotation.x =
       Math.PI / 2;
   }
@@ -428,13 +428,49 @@ export function createBoss(spec: BattleSpec): Fighter {
   );
   const weapon = new THREE.Group();
   body.add(weapon);
+  if (look && look.weapon !== 'fists') {
+    forearms[1].add(weapon);
+    weapon.position.set(0, -0.6, 0.2);
+    capsule(weapon, 0.07, 1.2, plates, [0, 0.3, 0]);
+    if (look.weapon === 'hammer')
+      mesh(weapon, new THREE.BoxGeometry(1.2, 0.7, 0.6), plates, [0, 1.15, 0]);
+    else if (look.weapon === 'staff')
+      mesh(weapon, new THREE.IcosahedronGeometry(0.3, 1), glow, [0, 1.2, 0]);
+    else {
+      mesh(weapon, new THREE.BoxGeometry(0.24, 1.5, 0.12), plates, [0, 1.1, 0]);
+      mesh(weapon, new THREE.BoxGeometry(0.05, 1.5, 0.14), glow, [0, 1.1, 0]);
+    }
+  }
+  if (look?.head === 'hood')
+    mesh(head, new THREE.ConeGeometry(0.65, 0.9, 12), plates, [0, 0.4, -0.08]);
+  if (look?.head === 'helmet')
+    mesh(head, new THREE.BoxGeometry(0.8, 0.25, 0.6), plates, [0, 0.34, 0]);
+  if (look?.head === 'mask')
+    mesh(head, new THREE.BoxGeometry(0.62, 0.36, 0.16), plates, [0, -0.08, 0.4]);
+  if (look?.head === 'hair')
+    for (let i = 0; i < 5; i++)
+      mesh(head, new THREE.ConeGeometry(0.12, 0.45, 6), plates, [(i - 2) * 0.15, 0.4, -0.08]);
+  const cape = look?.cape
+    ? mesh(
+        body,
+        new THREE.PlaneGeometry(1.8, 2.2, 8, 10),
+        surface(look.bodyColor, 0, 0.95, 51),
+        [0, 2.1, -0.58],
+      )
+    : null;
+  if (cape) {
+    cape.geometry.translate(0, -0.6, 0);
+    (cape.material as THREE.Material).side = THREE.DoubleSide;
+  }
+  if (look?.archetype === 'beast') body.scale.set(1.15, 1, 1.1);
   for (let i = 0; i < 5; i++)
     mesh(body, new THREE.ConeGeometry(0.15, 0.65, 12), spec.arena === 'storm' ? glow : plates, [
       (i - 2) * 0.25,
       2.85,
       -0.5,
     ]).rotation.x = -0.5;
-  [body, head, ...arms, ...forearms, ...legs, ...shins].forEach((part) => batchRigidMeshes(part));
+  [head, weapon, ...arms, ...forearms, ...legs, ...shins].forEach((part) => batchRigidMeshes(part));
+  batchRigidMeshes(body, cape ? [cape] : []);
   return {
     root,
     body,
@@ -444,7 +480,7 @@ export function createBoss(spec: BattleSpec): Fighter {
     legs,
     shins: pair(shins),
     weapon,
-    cape: null,
+    cape,
     height: 4.3,
     ...protection(root, spec.secondaryColor, 4.15),
   };

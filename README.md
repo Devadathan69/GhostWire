@@ -84,7 +84,7 @@ npm run build
 npm run test:e2e
 ```
 
-The cooperative suite passes **69 unit/network tests**, strict TypeScript, and the production build. **All nine cooperative browser scenarios passed in the final combined run (5.7 minutes)**, including four-hero combat, two complete human-role matches, local-camera breach, safe graphics-ready reconnect, both outcomes, and replay. Coverage includes shield pairing/expiry, burst timing, personal movement/defenses, shared AOE, rescue interruption/bleedout, wipe/time limit, scaled breach, AI companion, room capacity/ownership, renderer gates on start/reconnect, and replay.
+The suite passes **90 rules/network/creator/motion tests in ten files**, TypeScript and the production build. **All 11 browser scenarios passed in one combined run (7.7 minutes)**, including two complete human-role matches, four-hero combat, local-camera breach, graphics-ready reconnect, both outcomes/replay, separate device regions, watching/travel, a third live realm, editable 3D blueprints, duplicate-control/no-key errors, hero selection and a custom key reaching combat. Public HTTPS verification passed assets, invitations, private identities, regional travel, live expansion and shared team damage. [Verification details](docs/TEST_PLAN.md).
 
 Physical body/hand recognition, Android/iOS performance, venue networks, a live OpenAI request, and Docker remain manual checks. Synthetic camera/landmark tests establish integration rather than real-person recognition. Existing versus-mode screenshots and [the earlier audit](docs/QA_AUDIT.md) are historical evidence; they do not establish the cooperative release. New cooperative evidence is recorded separately.
 
@@ -98,10 +98,14 @@ Original characters, terrain, textures, and effects are authored as Three.js geo
 
 - `apps/server/src/raidEngine.ts`: cooperative rules, AI boss, revives, and shared simulation.
 - `apps/server/src/server.ts`: rooms, private hero ownership, APIs, readiness, reconnect, and snapshots.
+- `apps/server/src/creativeDirector.ts`: bounded OpenAI creation and explicit local blueprints.
 - `packages/shared/src/index.ts`: validated inputs, raid/hero contracts, and personal-view projection.
+- `packages/shared/src/creative.ts`: hero/boss/environment schemas, supported effects and control validation.
 - `apps/client/src/game/`: articulated 3D scene, team rigs, powers, materials, audio, and movement input.
 - `apps/client/src/cv/`: local camera lifecycle and calibrated pose/hand controls.
 - `apps/client/src/components/`: squad display, HUD, controls, Reality Breach, and outcomes.
 - `tests/`: deterministic combat/raid checks, real Socket.IO sessions, and browser scenarios.
 
 The earlier implementation plan and build log remain in `docs/` as historical context. [COOPERATIVE_RAID.md](docs/COOPERATIVE_RAID.md) describes the current game.
+
+![Editable custom 3D encounter preview](docs/screenshots/forge-preview-detail.png)

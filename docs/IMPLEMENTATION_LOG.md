@@ -1,5 +1,11 @@
 # Implementation record
 
+## Connected worlds and creative forge — 25 October 2026
+
+Each human device now expands the portal-connected world with an owned realm. Hero travel, boss invasions, regional damage/rescues, remote rift support, late joins/scaled boss HP and protected arriving graphics are implemented. The creative forge accepts movie/character/fight briefs, validates OpenAI structured output, previews editable procedural 3D heroes/boss/environment, and applies custom powers/keys/recognized gestures. Local templates are explicit and work without a key. See [the four upgrade phases](EXPANDING_WORLDS.md).
+
+Verification: 90 rules/network/creator/motion tests, TypeScript/build, all 11 browser scenarios in 7.7 minutes, and refreshed public HTTPS multiplayer checks pass. Browser tests use synthetic sources and real application inputs. Later guide wording/cape-option cleanup was rebuilt/typechecked; no new combat behavior was introduced. No local API key was supplied, so real model output/account access remains unverified. Human review and physical-device gesture/performance checks remain pending. The prior cooperative milestone below is historical.
+
 ## Cooperative redesign — 25 October 2026
 
 The owner clarified the intended game as multiple heroes teaming up against one large boss. The current implementation replaces human boss possession with 2–4 private hero sessions, server AI, scaled shared boss HP, paired-hit Aegis openings, coordinated Overdrive bursts, teammate rescue, and shared outcomes. All heroes render together with personal controls and health. Reality Breach now uses optional local camera video per device. The design/phases are in [COOPERATIVE_RAID.md](COOPERATIVE_RAID.md).

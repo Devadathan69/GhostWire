@@ -25,6 +25,29 @@ function world() {
   return s;
 }
 describe('connected device realms', () => {
+  it('waits for a living reinforcement instead of declaring a wipe while graphics load', () => {
+    const s = world();
+    addHero(s, 'late', 'Late');
+    for (const id of ['one', 'two']) {
+      s.raid.heroes[id].hp = 0;
+      s.raid.heroes[id].downedUntil = s.clock + 20000;
+    }
+    advance(s, 50);
+    expect(s.phase).toBe('ARENA');
+    s.raid.heroes.late.hp = 0;
+    advance(s, 50);
+    expect(s.phase).toBe('DEFEAT');
+  });
+  it('starts the roaming timer from the raid opening even after a long lobby wait', () => {
+    const s = createRaid('ABC234', PRESETS.ember, 'one', 'One');
+    addHero(s, 'two', 'Two');
+    advance(s, 60000);
+    Object.values(s.raid.heroes).forEach((h) => (h.ready = true));
+    startRaid(s);
+    advance(s, 3000);
+    expect(s.raid.bossTransit).toBeNull();
+    expect(s.raid.nextRoamAt).toBeGreaterThan(s.clock);
+  });
   it('creates a new owned realm per device, while the training bot shares its device', () => {
     const s = world();
     expect(Object.keys(s.raid.regions)).toHaveLength(2);

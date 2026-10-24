@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import {
   heroPosition,
   heroView,
-  EffectSchema,
   MELEE_RANGE,
   type BattleState,
   type PendingAttack,
@@ -273,7 +272,19 @@ export class BattleScene {
     };
     const templates = [
       template,
-      ...EffectSchema.options.map((effect) => ({ ...template, effect })),
+      ...[
+        ...new Set(
+          this.state.spec.creation?.heroes.map(
+            (h) => h.abilities.find((a) => a.action === 'special')!.effect,
+          ) ?? [],
+        ),
+      ].map((effect) => ({ ...template, effect })),
+      {
+        ...template,
+        action: 'punch' as const,
+        regionId: 'warm-source',
+        targetRegionId: 'warm-target',
+      },
       { ...template, action: 'punch' as const },
       { ...template, action: 'kick' as const },
       ...this.state.spec.bossAttacks.map((attackId, index) => ({
@@ -827,6 +838,11 @@ export class BattleScene {
     );
     this.renderer.domElement.dataset.bossWorld = `${s.fighters.boss.position.x.toFixed(2)},${s.fighters.boss.position.z.toFixed(2)}`;
     this.renderer.domElement.dataset.phase = s.phase;
+    const lastHeroEvent = [...s.events].reverse().find(
+      (e) => e.role === 'hero' && e.playerId === s.viewPlayerId,
+    );
+    this.renderer.domElement.dataset.lastHeroAction =
+      lastHeroEvent?.move ?? lastHeroEvent?.action ?? '';
     if (s.raid) {
       this.renderer.domElement.dataset.visibleHeroes = String(
         Object.values(s.raid.heroes).filter(
@@ -844,7 +860,9 @@ export class BattleScene {
     );
     this.renderer.domElement.dataset.activeEffect = s.pending
       .map((a) =>
-        a.role === 'hero' && a.action === 'special' ? s.spec.heroPower : (a.attackId ?? a.action),
+        a.role === 'hero' && a.action === 'special'
+          ? (a.effect ?? s.spec.heroPower)
+          : (a.attackId ?? a.action),
       )
       .join(',');
     const anchor = worldToScreen(this.camera, this.hero.root.position);

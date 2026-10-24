@@ -25,7 +25,7 @@ At 50% of scaled boss HP the squad enters Reality Breach. Each player's optional
 
 ## Phase 4 — Verification and publication
 
-The cooperative unit/network suite passes 69 tests, including 23 raid-rule tests and migrated ownership/recovery checks. TypeScript and the production build pass. All nine browser scenarios passed in the final combined run (5.7 minutes), including four-hero 3D combat and two complete human-role matches through camera-backed breach, safe reconnect, matching victories, and replay readiness. The public HTTPS check also passed assets, invitations, independent hero identities, solo shielding, and shared coordinated damage. Physical gesture/device rehearsal remains separate.
+The current upgrade passes 90 rules/network/creator/motion tests, TypeScript and the production build. All 11 browser scenarios passed in one run (7.7 minutes), covering complete matches, camera-backed breach/reconnect/outcomes/replay, connected device regions, travel, late expansion and a playable edited blueprint. Public HTTPS verified invitations/assets, private identities, solo shielding, shared damage, travel and live reinforcement. [Detailed coverage](TEST_PLAN.md). Physical gesture/device rehearsal and live AI generation remain separate checks.
 
 ## Connection rules
 

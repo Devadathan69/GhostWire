@@ -2,6 +2,44 @@ import { expect, type Page } from '@playwright/test';
 export async function ready(page: Page) {
   await page.getByRole('button', { name: 'I’m ready', exact: true }).click();
 }
+export async function defend(page: Page) {
+  await page.evaluate(() => {
+    let held = '';
+    const send = (key: string, type: 'keydown' | 'keyup') =>
+      document.body.dispatchEvent(
+        new KeyboardEvent(type, { key, bubbles: true, cancelable: true }),
+      );
+    window.setInterval(() => {
+      const walking = document.querySelector<HTMLButtonElement>('button[aria-label="Move left"]');
+      const next =
+        walking && !walking.disabled
+          ? ['w', 'd', 's', 'a'][Math.floor(performance.now() / 1000) % 4]
+          : '';
+      if (next !== held) {
+        if (held) send(held, 'keyup');
+        if (next) send(next, 'keydown');
+        held = next;
+      }
+      const stage = document.querySelector<HTMLElement>('[data-testid="game-stage"]');
+      if (Number(stage?.dataset.impactIn ?? 99999) > 500) return;
+      for (const [name, key] of [
+        ['Evade', 'l'],
+        ['Guard', 'k'],
+        ['Jump', 'e'],
+      ]) {
+        const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+        if (!button || button.disabled) continue;
+        document.body.dispatchEvent(
+          new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+        );
+        document.body.dispatchEvent(
+          new KeyboardEvent('keyup', { key, bubbles: true, cancelable: true }),
+        );
+        break;
+      }
+    }, 100);
+  });
+}
 export async function start(page: Page) {
   await ready(page);
   await page.getByRole('button', { name: 'Begin raid', exact: true }).click();

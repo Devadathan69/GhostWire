@@ -193,6 +193,15 @@ export function GameStage({
           <div className="intro-line" />
         </div>
       )}
+      {state.raid &&
+        !state.raid.heroes[state.viewPlayerId ?? '']?.renderReady &&
+        ['ARENA', 'REALITY'].includes(state.phase) && (
+          <div className="cinematic-overlay">
+            <span className="eyebrow">YOUR REALM HAS JOINED THE WORLD</span>
+            <h2>Preparing your 3D realm…</h2>
+            <p>Your hero is protected while graphics load. Your teammates can keep fighting.</p>
+          </div>
+        )}
       {state.phase === 'BREACH_TRANSITION' && (
         <div className="cinematic-overlay breach-title">
           <span className="eyebrow">CONTAINMENT FAILURE</span>
