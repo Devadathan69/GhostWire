@@ -1,5 +1,13 @@
 # Change log
 
+## 2026-10-24T23:38:29+05:30 — Record the implementation revision
+
+- Changed: recorded implementation commit `80df2ad32fd8206e66c3b187d750d21bab0d59a1` in `SUBMISSION.md` and updated the AI/publication record. Game code is unchanged.
+- Why: let reviewers identify the exact implementation independently of this follow-up documentation commit.
+- Validation: reviewed 91 publishable files, found zero credential-pattern matches and zero broken local Markdown links, and passed the complete staged whitespace check. The existing submitted repository history is an ancestor of the implementation commit.
+- Publication: implementation commit `80df2ad` was pushed successfully to the submitted repository's `main` branch; this subsequent commit records its SHA and publication status.
+- Limitations: the participant's human review, physical demo, and organizer confirmations remain unverified; no additional runtime test result is claimed for this documentation-only update.
+
 ## 2026-10-24T23:35:48+05:30 — Publish the playable 3D Reality Raid implementation
 
 - Changed: added the completed local game in `apps/` and `packages/`, reproducible setup/phone-test scripts, pinned dependencies and model assets, tests, licenses, screenshots, and implementation/demo documentation. Completed project details in `README.md`, `SUBMISSION.md`, and `AI_USAGE.md`; combined local ignores with the submitted template's credential/cache exclusions.

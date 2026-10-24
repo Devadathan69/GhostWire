@@ -7,7 +7,7 @@ Project details for the repository the owner identified as their Devin Hack Koch
 - **Project name:** GHOSTWIRE: REALITY RAID
 - **Short description:** A browser-based two-player 3D boss battle. One player controls the hero while a friend possesses the boss using camera gestures or touch/keyboard controls. At half boss health, Reality Breach makes the boss's live camera feed the battlefield for the miniature 3D hero.
 - **Code repository URL:** https://github.com/Devadathan69/GhostWire
-- **Final submitted implementation commit SHA:** Recorded by the follow-up publication record after the implementation commit is created.
+- **Final submitted implementation commit SHA:** [80df2ad32fd8206e66c3b187d750d21bab0d59a1](https://github.com/Devadathan69/GhostWire/commit/80df2ad32fd8206e66c3b187d750d21bab0d59a1). This contains the game implementation; the following publication-record commit changes documentation only.
 - **Working demo URL or local demo steps:** Run the commands below and open `http://localhost:3001`. On Windows, `Start-Phone-Test.cmd` creates a temporary HTTPS address for both devices; [the phone walkthrough](docs/PHONE_TEST.md) explains the complete match. A permanent hosted demo URL has not been provisioned.
 - **Demo access requirements:** Node.js 22.12+, npm, a current browser with WebGL 2, and internet for initial installation. No account or API key is required. Camera motion and phone video require permission and HTTPS. Manual controls and solo training work without cameras.
 
@@ -41,8 +41,8 @@ Only the repository owner's GitHub identity has been supplied. Additional partic
 - [x] README setup and demo instructions match the implementation.
 - [x] Actual checks and known limitations are documented.
 - [ ] Commit milestones throughout development: the local implementation predated connection to this repository, so its earlier phases have no Git commit record. The import preserves the existing submitted history.
-- [ ] The final implementation is committed and pushed, and its SHA is recorded above.
-- [ ] No credentials or private data are included in the repository or demo instructions.
+- [x] The implementation is committed and pushed to `main`, and its SHA is recorded above.
+- [x] Repository review found no credentials or private participant data; local secrets, live room data, recordings, and temporary tooling are ignored. The publication scan found zero credential-pattern matches and zero broken local Markdown links.
 - [ ] The organizers' announced submission method and timing have been followed.
 
 Event: **Devin Hack Kochi**. Follow the organizers' current submission method and deadline. The event has no major AI usage constraints.
