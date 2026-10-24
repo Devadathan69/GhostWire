@@ -136,12 +136,16 @@ export function GameStage({
           <span className="tiny-dot" />
           {reality ? '02 / REALITY BREACH' : '01 / THE RIFT ARENA'}
         </span>
-        <span>{state.practice ? 'TRAINING OPPONENT' : 'TWO HUMAN PLAYERS'}</span>
+        <span>
+          {state.raid
+            ? `${Object.keys(state.raid.heroes).length} HEROES · CO-OP RAID`
+            : 'RAID ARENA'}
+        </span>
       </div>
       {reality && (
         <div className={`media-label ${videoReady ? 'live' : ''}`}>
           {videoReady ? <Video size={12} /> : <VideoOff size={12} />}{' '}
-          {videoReady ? 'LIVE · BOSS CAMERA' : 'VIRTUAL ARENA · NO LIVE CAMERA'}
+          {videoReady ? 'LIVE · YOUR CAMERA' : 'VIRTUAL ARENA · NO LIVE CAMERA'}
         </div>
       )}
       {bossAttack && (
@@ -156,7 +160,7 @@ export function GameStage({
       {state.phase === 'INTRO' && (
         <div className="cinematic-overlay">
           <span className="eyebrow">
-            {state.renderPending ? 'PREPARING BOTH 3D VIEWS…' : 'ANOMALY DETECTED'}
+            {state.renderPending ? 'PREPARING THE SQUAD’S 3D VIEWS…' : 'ANOMALY DETECTED'}
           </span>
           <h2>{state.spec.bossName}</h2>
           <p>“{state.spec.introLine}”</p>
@@ -179,7 +183,7 @@ export function GameStage({
           <span className="eyebrow">RAID PAUSED</span>
           <h2>Signal interrupted.</h2>
           <p>
-            Waiting up to 30 seconds for your opponent to reconnect.
+            Waiting up to 30 seconds for your teammate to reconnect.
             <br />
             Health, attacks, and cooldowns are frozen.
           </p>

@@ -45,59 +45,59 @@ const request = (s, event, data = {}) =>
   );
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const hero = await connect(),
-  boss = await connect();
+  ally = await connect();
 try {
+  assert.equal(health.mode, 'cooperative');
   const encounter = await fetch(`${base}/api/encounters`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: 'Phone connection test', preset: 'ember' }),
+    body: JSON.stringify({ prompt: 'Cooperative phone connection test', preset: 'ember' }),
   }).then((r) => r.json());
   const room = await request(hero, 'room:create', { encounterId: encounter.id, practice: false });
   assert(room.joinUrl.startsWith(base));
-  await request(boss, 'room:join', { code: room.session.code });
+  const joined = await request(ally, 'room:join', { code: room.session.code });
+  assert.equal(joined.session.role, 'hero');
+  assert.notEqual(joined.session.playerId, room.session.playerId);
   let h = room.state,
-    b;
+    a;
   hero.on('battle:snapshot', (s) => (h = s));
-  boss.on('battle:snapshot', (s) => (b = s));
-  await request(hero, 'room:ready', { ready: true, camera: false, controlMode: 'manual' });
-  await request(boss, 'room:ready', { ready: true, camera: false, controlMode: 'manual' });
+  ally.on('battle:snapshot', (s) => (a = s));
+  for (const client of [hero, ally])
+    await request(client, 'room:ready', { ready: true, camera: false, controlMode: 'manual' });
   await request(hero, 'battle:start');
   await sleep(3100);
   await request(hero, 'gesture:intent', { action: 'punch', sequence: 1 });
-  await sleep(500);
-  assert.equal(h.bossHp, 114);
-  assert.equal(b.bossHp, 114);
-  await request(boss, 'gesture:intent', { action: 'swipe', sequence: 1 });
-  await sleep(1200);
-  assert.equal(h.heroHp, 90);
-  assert.equal(b.heroHp, 90);
-  const signal = new Promise((r) => hero.once('webrtc:signal', r));
-  await request(boss, 'webrtc:signal', {
-    type: 'offer',
-    sdp: 'connectivity-check',
-    generation: 'phone-verify',
-  });
-  assert.equal((await signal).generation, 'phone-verify');
-  const rtc = await request(hero, 'webrtc:config');
+  await sleep(400);
+  assert.equal(h.bossHp, 360); // Solo attack is absorbed.
+  await Promise.all([
+    request(hero, 'gesture:intent', { action: 'special', sequence: 2 }),
+    request(ally, 'gesture:intent', { action: 'special', sequence: 1 }),
+  ]);
+  await sleep(1500);
+  assert(h.bossHp < 360);
+  assert.equal(h.bossHp, a.bossHp);
+  assert.equal(Object.keys(h.raid.heroes).length, 2);
+  assert(h.raid.targetId);
   console.log(
     JSON.stringify(
       {
         https: true,
+        cooperative: true,
         modelAssets: true,
         publicInvites: true,
-        twoPlayers: true,
-        sharedCombat: true,
-        mediaSignaling: true,
-        turnConfigured: rtc.iceServers.some(
-          (s) => String(s.urls).includes('turn:') || String(s.urls).includes('turns:'),
-        ),
+        independentHeroes: true,
+        soloDamageBlocked: true,
+        sharedTeamDamage: true,
+        bossAI: true,
+        cameraMode: 'local only',
       },
       null,
       2,
     ),
   );
+  await request(ally, 'room:leave');
   await request(hero, 'room:leave');
 } finally {
   hero.disconnect();
-  boss.disconnect();
+  ally.disconnect();
 }

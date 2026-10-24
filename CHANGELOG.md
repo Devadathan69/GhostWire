@@ -1,5 +1,19 @@
 # Change log
 
+## 2026-10-25T00:48:06+05:30 — Verify squad rules and refine coordinated combat
+
+- Changed: capped overlapping zones from one Cataclysm to one hit per hero, tuned raid damage, and made final-tick damage interrupt revives. Cameras stop automatically at a team outcome. Removed obsolete peer-video code and TURN setup; migrated current controls, phone/demo guides and public-link checks to local-camera cooperative play.
+- Validation: all 68 unit/network tests and strict TypeScript pass. The first browser run passed camera preferences/cancellation/retry, four-hero capacity, and mobile camera denial with a real defeat. It exposed idle-test and sequential-network timing issues; complete-match/movement scenarios are being corrected and rerun before handoff. Public HTTPS independently verified assets, invitations, independent hero identities, blocked solo damage, and shared paired damage.
+- Limitations: the full cooperative browser suite is not yet passing; final build and browser validation will be recorded separately. Real-person gestures and physical-device rendering remain manual checks.
+
+## 2026-10-25T00:42:36+05:30 — Convert the game into a cooperative squad raid
+
+- Changed: replaced hero-versus-human-boss rooms with 2–4 privately owned heroes against one server AI boss. Added scaled shared boss HP, Soul Aegis requiring two distinct attackers, six-second openings, paired Overdrive Unity Bursts, personal health/defenses, downed/rescue/bleedout, team wipe/time-limit outcomes, leader transfer, reconnect and replay gates.
+- Presentation: cooperative home/lobby, independent colored/name-tagged 3D heroes and spells, shared boss/team HUD, revive controls, exact hero/motion guide, and team results. Reality Breach now uses each hero's optional local camera; removed peer-video transmission.
+- Why: implement the owner's intended team-against-one-boss game. A main raid cannot start solo, and solo attacks cannot break the boss shield. AI-ally training is explicitly labeled.
+- Validation: strict TypeScript and production build passed; all 66 unit/network tests passed. Added 20 cooperative-rule tests and migrated room/recovery coverage. The cooperative browser regression and public HTTPS check are running and will be recorded separately.
+- Limitations: real-person motion and physical phone/Safari rendering remain unverified; camera fixtures are synthetic. No permanent hosting or room reconstruction is claimed.
+
 ## 2026-10-25T00:19:16+05:30 — Record the published movement and motion revision
 
 - Changed: recorded implementation revision `aaaa3b02540e059a83d337760caacfde5b95fb3c` and the upgrade's final scope and verification in `SUBMISSION.md`; updated the AI record. No game code changed.

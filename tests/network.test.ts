@@ -41,92 +41,142 @@ const ready = (s: Socket) =>
 function wait(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
-describe('real Socket.IO sessions', () => {
-  it('isolates room roles and rejects takeover, invalid resume and guest start', async () => {
-    const hero = await client(),
-      boss = await client(),
-      stranger = await client();
-    const r = await room(hero);
-    expect((await req(boss, 'room:join', { code: r.session.code })).ok).toBe(true);
-    expect((await req(stranger, 'room:join', { code: r.session.code })).ok).toBe(false);
-    expect((await req(stranger, 'room:resume', { ...r.session, token: 'a'.repeat(48) })).ok).toBe(
+describe('cooperative Socket.IO sessions', () => {
+  it('creates four independent hero slots, rejects a fifth, and enforces leader/readiness gates', async () => {
+    const host = await client(),
+      peers = await Promise.all([client(), client(), client(), client()]);
+    const r = await room(host);
+    expect(r.session.role).toBe('hero');
+    expect((await req(host, 'battle:start')).ok).toBe(false);
+    const sessions = [];
+    for (const peer of peers.slice(0, 3)) {
+      const joined = await req<RoomReply>(peer, 'room:join', { code: r.session.code });
+      if (!joined.ok) throw Error(joined.error);
+      sessions.push(joined.data.session);
+    }
+    expect(new Set([r.session.playerId, ...sessions.map((s) => s.playerId)]).size).toBe(4);
+    expect((await req(peers[3], 'room:join', { code: r.session.code })).ok).toBe(false);
+    expect((await req(peers[0], 'battle:start')).ok).toBe(false);
+    await ready(host);
+    expect((await req(host, 'battle:start')).ok).toBe(false);
+    for (const peer of peers.slice(0, 3)) await ready(peer);
+    expect((await req(host, 'battle:start')).ok).toBe(true);
+    expect(server.rooms.get(r.session.code)!.state.bossHp).toBe(660);
+    expect((await req(peers[3], 'room:join', { code: r.session.code })).ok).toBe(false);
+    for (const peer of peers.slice(0, 3)) await req(peer, 'room:leave');
+    await req(host, 'room:leave');
+  });
+  it('scopes movement and attacks to the socket hero, rejects replay/extra actor fields, and shares damage', async () => {
+    const host = await client(),
+      peer = await client(),
+      outsider = await client();
+    const r = await room(host);
+    const joined = await req<RoomReply>(peer, 'room:join', { code: r.session.code });
+    if (!joined.ok) throw Error(joined.error);
+    await ready(host);
+    await ready(peer);
+    await req(host, 'battle:start');
+    const s = server.rooms.get(r.session.code)!.state;
+    s.phase = 'ARENA';
+    s.raid.nextAttackAt = 1e9;
+    for (const h of Object.values(s.raid.heroes)) h.fighter.position = { x: 2, z: 0 };
+    const id = r.session.playerId!,
+      other = joined.data.session.playerId!;
+    expect((await req(outsider, 'fighter:move', { x: 1, z: 0, sprint: false })).ok).toBe(false);
+    expect((await req(peer, 'fighter:move', { x: 1, z: 0, sprint: false, playerId: id })).ok).toBe(
       false,
     );
-    expect((await req(boss, 'battle:start')).ok).toBe(false);
-    await ready(hero);
-    expect((await req(hero, 'battle:start')).ok).toBe(false);
-    await ready(boss);
-    expect((await req(hero, 'battle:start')).ok).toBe(true);
-    await wait(2900);
-    expect((await req(boss, 'gesture:intent', { action: 'special', sequence: 1 })).ok).toBe(false);
-    expect((await req(hero, 'gesture:intent', { action: 'punch', sequence: 1 })).ok).toBe(true);
-    expect((await req(hero, 'gesture:intent', { action: 'punch', sequence: 1 })).ok).toBe(false);
+    expect((await req(host, 'gesture:intent', { action: 'power', sequence: 1 })).ok).toBe(false);
+    expect((await req(host, 'gesture:intent', { action: 'punch', sequence: 2 })).ok).toBe(true);
+    expect((await req(host, 'gesture:intent', { action: 'punch', sequence: 2 })).ok).toBe(false);
     await wait(230);
-    expect(server.rooms.get(r.session.code)!.state.bossHp).toBe(114);
-    expect((await req(stranger, 'webrtc:config')).ok).toBe(false);
-    await req(hero, 'room:leave');
+    expect(s.bossHp).toBe(360);
+    expect((await req(peer, 'gesture:intent', { action: 'punch', sequence: 1 })).ok).toBe(true);
+    await wait(230);
+    expect(s.bossHp).toBeLessThan(360);
+    const before = { ...s.raid.heroes[id].fighter.position };
+    await req(peer, 'fighter:move', { x: 1, z: 0, sprint: true });
+    await wait(150);
+    expect(s.raid.heroes[other].fighter.position.x).toBeGreaterThan(2);
+    expect(s.raid.heroes[id].fighter.position).toEqual(before);
+    expect(s.raid.heroes[id].hp).toBe(100);
+    await req(peer, 'room:leave');
+    await req(host, 'room:leave');
+  });
+  it('pauses the whole squad on disconnect and resumes the private hero without resetting health', async () => {
+    const host = await client(),
+      peer = await client();
+    const r = await room(host);
+    const joined = await req<RoomReply>(peer, 'room:join', { code: r.session.code });
+    if (!joined.ok) throw Error(joined.error);
+    await ready(host);
+    await ready(peer);
+    await req(host, 'battle:start');
+    const s = server.rooms.get(r.session.code)!.state;
+    s.phase = 'REALITY';
+    s.raid.heroes[joined.data.session.playerId!].hp = 49;
+    peer.disconnect();
+    await wait(100);
+    expect(s.phase).toBe('DISCONNECTED');
+    const clock = s.clock;
+    await wait(250);
+    expect(s.clock).toBe(clock);
+    const replacement = await client();
+    expect((await req(replacement, 'room:resume', joined.data.session)).ok).toBe(true);
+    expect(s.phase).toBe('REALITY');
+    expect(s.raid.heroes[joined.data.session.playerId!].hp).toBe(49);
+    await req(replacement, 'room:leave');
+    await req(host, 'room:leave');
+  });
+  it('never exposes tokens in snapshots or permits another hero to resume a stolen id', async () => {
+    const host = await client(),
+      peer = await client(),
+      stranger = await client();
+    const r = await room(host);
+    const joined = await req<RoomReply>(peer, 'room:join', { code: r.session.code });
+    if (!joined.ok) throw Error(joined.error);
+    expect(JSON.stringify(joined.data.state)).not.toContain(r.session.token);
+    expect(
+      (await req(stranger, 'room:resume', { ...r.session, token: joined.data.session.token })).ok,
+    ).toBe(false);
+    expect((await req(peer, 'room:resume', r.session)).ok).toBe(false);
+    await req(peer, 'room:leave');
+    await req(host, 'room:leave');
+  });
+  it('transfers leadership and frees a lobby slot when a teammate leaves', async () => {
+    const host = await client(),
+      peer = await client(),
+      third = await client();
+    const r = await room(host);
+    const joined = await req<RoomReply>(peer, 'room:join', { code: r.session.code });
+    if (!joined.ok) throw Error(joined.error);
+    await req(host, 'room:leave');
+    const s = server.rooms.get(r.session.code)!.state;
+    expect(s.raid.hostId).toBe(joined.data.session.playerId);
+    expect(Object.keys(s.raid.heroes)).toHaveLength(1);
+    expect((await req(third, 'room:join', { code: r.session.code })).ok).toBe(true);
+    expect(new Set(Object.values(s.raid.heroes).map((h) => h.color)).size).toBe(2);
+    await req(third, 'room:leave');
+    await req(peer, 'room:leave');
     expect(server.rooms.has(r.session.code)).toBe(false);
   });
-  it('reconnects with a private token without resetting health or damaging during pause', async () => {
-    const hero = await client(),
-      boss = await client();
-    const r = await room(hero);
-    const b = await req<RoomReply>(boss, 'room:join', { code: r.session.code });
-    if (!b.ok) throw new Error(b.error);
-    await ready(hero);
-    await ready(boss);
-    await req(hero, 'battle:start');
-    await wait(2900);
-    await req(boss, 'gesture:intent', { action: 'swipe', sequence: 1 });
-    boss.disconnect();
-    await wait(100);
-    const state = server.rooms.get(r.session.code)!.state,
-      clock = state.clock;
-    expect(state.phase).toBe('DISCONNECTED');
-    await wait(5000);
-    expect(state.clock).toBe(clock);
-    expect(state.heroHp).toBe(100);
-    const resumed = await client();
-    expect((await req(resumed, 'room:resume', b.data.session)).ok).toBe(true);
-    expect(state.phase).toBe('ARENA');
-    await wait(850);
-    expect(state.heroHp).toBe(90);
-    await req(hero, 'room:leave');
-  });
-  it('never lets an unauthenticated or other-room peer inject signaling', async () => {
-    const h1 = await client(),
-      h2 = await client(),
-      boss = await client(),
-      outsider = await client();
-    const one = await room(h1),
-      two = await room(h2);
-    expect(one.session.code).not.toBe(two.session.code);
-    await req(boss, 'room:join', { code: one.session.code });
-    let leaked = false;
-    h2.on('webrtc:signal', () => (leaked = true));
-    let received = 0;
-    h1.on('webrtc:signal', () => received++);
-    outsider.emit('webrtc:signal', { type: 'offer', sdp: 'bad', generation: 'bad' });
-    await req(boss, 'webrtc:signal', { type: 'offer', sdp: 'scoped', generation: 'test' });
-    await wait(80);
-    expect(received).toBe(1);
-    expect(leaked).toBe(false);
-    await req(h1, 'room:leave');
-    await req(h2, 'room:leave');
-  });
-  it('validates HTTP input and supplies distinct offline fallback encounters', async () => {
+  it('validates HTTP encounters and rejects invalid player names', async () => {
     const bad = await fetch(`${base}/api/encounters`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: 'x' }),
     });
     expect(bad.status).toBe(400);
-    const shadow = (await fetch(`${base}/api/encounters`, {
+    const shadow = await fetch(`${base}/api/encounters`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: 'Moon shadow forest', preset: 'shadow' }),
-    }).then((r) => r.json())) as { spec: { arena: string }; source: string };
-    expect(shadow.source).toBe('preset');
+    }).then((r) => r.json());
     expect(shadow.spec.arena).toBe('shadow_forest');
+    const h = await client();
+    expect(
+      (await req(h, 'room:create', { encounterId: shadow.id, practice: false, name: '<script>' }))
+        .ok,
+    ).toBe(false);
   });
 });

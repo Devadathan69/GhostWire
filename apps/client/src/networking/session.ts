@@ -8,6 +8,7 @@ import type {
   Target,
   Movement,
 } from '@ghostwire/shared';
+import { heroView } from '@ghostwire/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const socket = io({
@@ -29,7 +30,7 @@ export function request<T>(event: string, payload: unknown = {}): Promise<T> {
     });
   });
 }
-const storageKey = 'ghostwire-session-v1';
+const storageKey = 'ghostwire-coop-session-v2';
 export function useSession() {
   const [state, setState] = useState<BattleState | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -41,7 +42,7 @@ export function useSession() {
   const accept = useCallback((r: RoomReply) => {
     current.current = r.session;
     setSession(r.session);
-    setState(r.state);
+    setState(heroView(r.state, r.session.playerId));
     setJoinUrl(r.joinUrl);
     sequence.current = 0;
     sessionStorage.setItem(storageKey, JSON.stringify(r.session));
@@ -70,13 +71,14 @@ export function useSession() {
     };
     socket.on('connect', connect);
     socket.on('disconnect', disconnect);
-    socket.on('battle:snapshot', setState);
+    const snapshot = (s: BattleState) => setState(heroView(s, current.current?.playerId));
+    socket.on('battle:snapshot', snapshot);
     socket.on('room:closed', closed);
     socket.connect();
     return () => {
       socket.off('connect', connect);
       socket.off('disconnect', disconnect);
-      socket.off('battle:snapshot', setState);
+      socket.off('battle:snapshot', snapshot);
       socket.off('room:closed', closed);
       socket.disconnect();
     };
@@ -88,10 +90,6 @@ export function useSession() {
       sequence: ++sequence.current,
       ...(target ? { target } : {}),
     });
-  }, []);
-  const aim = useCallback((target: Target) => {
-    if (socket.connected && current.current?.role === 'boss')
-      socket.volatile.emit('boss:target', target);
   }, []);
   const move = useCallback((movement: Movement) => {
     if (socket.connected && current.current) socket.volatile.emit('fighter:move', movement);
@@ -113,7 +111,6 @@ export function useSession() {
     setNotice,
     accept,
     intent,
-    aim,
     move,
     leave,
   };

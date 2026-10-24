@@ -15,13 +15,19 @@ test('free walking, sprint, jumping, kicking, powers and exact instructions rema
   await boss.goto(
     await page.getByRole('textbox', { name: 'Invite URL', exact: true }).inputValue(),
   );
-  await boss.getByRole('button', { name: 'Possess the boss', exact: true }).click();
+  await boss.getByRole('button', { name: 'Join the squad', exact: true }).click();
   await boss.getByRole('button', { name: 'I’m ready', exact: true }).click();
   await page.getByRole('button', { name: 'I’m ready', exact: true }).click();
   await page.getByRole('button', { name: 'Begin raid', exact: true }).click();
   const canvas = page.locator('canvas[data-renderer="three"]');
   await expect(canvas).toHaveAttribute('data-ready', 'true');
   await expect(page.getByRole('button', { name: 'Jump', exact: true })).toBeEnabled();
+  await Promise.all([
+    page.getByRole('button', { name: 'Overdrive', exact: true }).click(),
+    boss.getByRole('button', { name: 'Overdrive', exact: true }).click(),
+  ]);
+  await expect(canvas).toHaveAttribute('data-active-effect', /thunder_strike/);
+  await expect(page.getByTestId('boss-hp')).not.toHaveText('360 / 360');
   const origin = await canvas.getAttribute('data-hero-world');
   await page.keyboard.down('w');
   await page.waitForTimeout(550);
@@ -37,22 +43,15 @@ test('free walking, sprint, jumping, kicking, powers and exact instructions rema
   await page.keyboard.up('a');
   await page.keyboard.up('Shift');
   await page.keyboard.press('e');
-  await page.screenshot({ path: 'docs/screenshots/free-movement-jump.png', fullPage: true });
+
   await page.getByRole('button', { name: 'Kick', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Kick', exact: true })).toBeDisabled();
-  await page.waitForTimeout(450);
-  await page.keyboard.press('Space');
-  await expect(canvas).toHaveAttribute('data-active-effect', 'thunder_strike');
-  await page
-    .getByTestId('game-stage')
-    .screenshot({ path: 'docs/screenshots/elemental-overdrive.png' });
-  await expect(page.getByRole('button', { name: 'Overdrive', exact: true })).toBeDisabled();
-  await expect(page.getByTestId('boss-hp')).not.toHaveText('120 / 120');
   await page.getByRole('button', { name: 'How to play', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Hero controls');
-  await expect(page.getByRole('dialog')).toContainText('Boss controls');
+  await expect(page.getByRole('dialog')).toContainText('Revive');
   await expect(page.getByRole('dialog')).toContainText('Hold Shift');
   await page.getByRole('button', { name: 'Close instructions', exact: true }).click();
+  await page.screenshot({ path: 'docs/screenshots/coop-movement.png', fullPage: true });
   await page.getByRole('button', { name: 'Leave raid', exact: true }).click();
   expect(errors).toEqual([]);
   await bossContext.close();

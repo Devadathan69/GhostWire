@@ -2,35 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import {
   ArrowRight,
-  ArrowUpRight,
   Check,
-  ChevronRight,
   Copy,
-  Crosshair,
-  Gamepad2,
-  Globe,
-  Link2,
-  LoaderCircle,
   Maximize2,
-  Radio,
   Shield,
   Sparkles,
-  Swords,
   Users,
   Volume2,
   VolumeX,
   X,
   Zap,
 } from 'lucide-react';
-import {
-  isCombat,
-  type Action,
-  type BattleState,
-  type Role,
-  type RoomReply,
-} from '@ghostwire/shared';
+import { isCombat, type Action, type RoomReply } from '@ghostwire/shared';
 import { request, useSession } from './networking/session';
-import { usePeerVideo } from './networking/webrtc';
 import { useCamera } from './cv/useCamera';
 import { RiftArtwork } from './components/Artwork';
 import { CameraPanel } from './components/CameraPanel';
@@ -38,182 +22,64 @@ import { Controls } from './components/Controls';
 import { GameStage } from './components/GameStage';
 import { Result } from './components/Result';
 import { ControlsGuide } from './components/ControlsGuide';
+import { RaidHealth, Squad } from './components/Squad';
 import { useMovement } from './game/useMovement';
 import { audioEnabled, setAudio, unlockAudio } from './game/audio';
 
-const prompts: Record<string, string> = {
-  ember: 'Thunder guardian versus a lava giant during a monsoon',
-  shadow: 'Moonlit forest warrior versus an ancient shadow beast',
-  storm: 'A fire knight faces the keeper of the storm in a shattered sky',
-};
-const names: Record<string, string> = {
-  ember: 'Emberfall',
-  shadow: 'Hollow Moon',
-  storm: 'Tempest',
-};
-function Logo({ onClick }: { onClick: () => void }) {
-  return (
-    <button className="brand" onClick={onClick} aria-label="GHOSTWIRE home">
-      <span className="brand-mark">
-        <Zap size={21} fill="currentColor" />
-      </span>
-      <span>
-        GHOSTWIRE<span className="brand-sub">REALITY RAID</span>
-      </span>
-    </button>
-  );
-}
-function Health({ state, role }: { state: BattleState; role: Role }) {
-  return (
-    <div className="health-hud">
-      {(['hero', 'boss'] as const).map((r) => (
-        <div className={`health-block ${r}`} key={r}>
-          <div className="health-title">
-            <span>
-              {r === role ? 'YOU / ' : ''}
-              {r === 'hero' ? state.spec.heroName : state.spec.bossName}
-            </span>
-            <strong data-testid={`${r}-hp`}>
-              {r === 'hero' ? state.heroHp : state.bossHp}
-              <small> / {r === 'hero' ? state.spec.heroMaxHp : state.spec.bossMaxHp}</small>
-            </strong>
-          </div>
-          <div className="health-track">
-            <div
-              style={{
-                width: `${(r === 'hero' ? state.heroHp / state.spec.heroMaxHp : state.bossHp / state.spec.bossMaxHp) * 100}%`,
-              }}
-            />
-            {r === 'boss' && <span className="breach-marker" />}
-          </div>
-          <span className="health-caption">
-            {r === 'hero'
-              ? 'HERO VITALS'
-              : state.practice
-                ? 'TRAINING COLOSSUS'
-                : 'HUMAN-CONTROLLED BOSS'}
-          </span>
-        </div>
-      ))}
-      <div className="versus">VS</div>
-    </div>
-  );
-}
-
+const worlds = [
+  ['ember', '◈ Emberfall', 'FIRE & THUNDER'],
+  ['shadow', '☾ Hollow Moon', 'SHADOW & MOONLIGHT'],
+  ['storm', 'ϟ Tempest', 'SKY & ASH'],
+];
+const noTarget = () => {};
 export default function App() {
   const net = useSession(),
-    camera = useCamera();
-  const { state, session } = net;
-  const [tab, setTab] = useState<'create' | 'join'>(
+    camera = useCamera(),
+    { state, session } = net;
+  const [tab, setTab] = useState(
     new URLSearchParams(location.search).has('join') ? 'join' : 'create',
   );
   const [code, setCode] = useState(new URLSearchParams(location.search).get('join') || '');
-  const [prompt, setPrompt] = useState(prompts.ember),
-    [preset, setPreset] = useState<string | undefined>('ember');
-  const [busy, setBusy] = useState(''),
-    [error, setError] = useState(''),
-    [qr, setQr] = useState(''),
-    [copied, setCopied] = useState(false);
+  const [name, setName] = useState(''),
+    [prompt, setPrompt] = useState('A team of thunder guardians against a colossal lava giant');
+  const [preset, setPreset] = useState<string | undefined>('ember'),
+    [busy, setBusy] = useState(''),
+    [error, setError] = useState('');
+  const [qr, setQr] = useState(''),
+    [copied, setCopied] = useState(false),
+    [help, setHelp] = useState(false);
   const [sound, setSound] = useState(audioEnabled()),
-    [controlMode, setControlMode] = useState<'manual' | 'motion'>('manual');
-  const [help, setHelp] = useState(false);
-  const [motion, setMotion] = useState(true);
-  const [trackingMode, setTrackingMode] = useState<'pose' | 'hand'>();
-  const helpClose = useRef<HTMLButtonElement>(null);
-  const codeRef = useRef<string | undefined>(undefined);
-  const match = useRef<HTMLDivElement>(null);
-  const peer = usePeerVideo(
-    session?.role,
-    session?.code,
-    session?.role === 'boss' ? camera.stream : null,
-    state?.players[session?.role === 'boss' ? 'hero' : 'boss'].connected ?? false,
-    net.connected,
+    [motion, setMotion] = useState(true),
+    [mode, setMode] = useState<'pose' | 'hand'>(window.innerWidth < 700 ? 'hand' : 'pose');
+  const [controlMode, setControlMode] = useState<'manual' | 'motion'>('manual');
+  const match = useRef<HTMLDivElement>(null),
+    closeHelp = useRef<HTMLButtonElement>(null);
+  const local = state?.raid?.heroes[session?.playerId ?? ''];
+  const leader = Boolean(state?.raid && session?.playerId === state.raid.hostId);
+  const lobby = Boolean(state && ['LOBBY', 'CALIBRATING'].includes(state.phase));
+  const finished = Boolean(state && ['VICTORY', 'DEFEAT'].includes(state.phase));
+  const active = Boolean(
+    state &&
+    isCombat(state.phase) &&
+    local &&
+    local.hp > 0 &&
+    !local.eliminated &&
+    net.connected &&
+    !help,
   );
-  const setMode = useCallback((m: 'manual' | 'motion') => setControlMode(m), []);
-  useEffect(() => {
-    if (codeRef.current !== session?.code) {
-      camera.stop();
-      codeRef.current = session?.code;
-    }
-  }, [session?.code, camera.stop]);
-  useEffect(() => {
-    if (net.joinUrl)
-      void QRCode.toDataURL(net.joinUrl, {
-        width: 208,
-        margin: 2,
-        color: { dark: '#0b1118', light: '#ffffff' },
-        errorCorrectionLevel: 'M',
-      })
-        .then(setQr)
-        .catch(() => setQr(''));
-  }, [net.joinUrl]);
-  useEffect(() => {
-    if (session && state && net.connected)
-      void request('room:ready', {
-        ready: state.players[session.role].ready,
-        camera: Boolean(camera.stream),
-        controlMode,
-      }).catch(() => {});
-  }, [camera.stream, controlMode, session, net.connected]);
-  useEffect(() => {
-    if (!help) return;
-    const prior = document.activeElement as HTMLElement | null;
-    helpClose.current?.focus();
-    const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setHelp(false);
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        helpClose.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', key);
-    return () => {
-      window.removeEventListener('keydown', key);
-      prior?.focus();
-    };
-  }, [help]);
+  const status = useRef({ active, state, local });
+  status.current = { active, state, local };
   const onAction = useCallback(
     (action: Action) => {
-      unlockAudio();
-      net.intent(action);
+      if (status.current.active) {
+        unlockAudio();
+        net.intent(action);
+      }
     },
     [net.intent],
   );
-  const movement = useMovement(
-    Boolean(
-      session &&
-      state &&
-      isCombat(state.phase) &&
-      net.connected &&
-      !help &&
-      !(session.role === 'boss' && state.phase === 'REALITY'),
-    ),
-    net.move,
-  );
-  useEffect(() => {
-    if (!session || !state || !isCombat(state.phase)) return;
-    const key = (e: KeyboardEvent) => {
-      if (help || e.repeat || (e.target as HTMLElement).closest('input,textarea,select')) return;
-      const keys: Record<string, Action> =
-        session.role === 'hero'
-          ? {
-              j: 'punch',
-              k: 'guard',
-              l: 'dodge',
-              ' ': 'special',
-              e: 'jump',
-              i: 'kick',
-            }
-          : { j: 'swipe', k: 'guard', ' ': 'power' };
-      const a = keys[e.key] || keys[e.key.toLowerCase()];
-      if (a) {
-        e.preventDefault();
-        onAction(a);
-      }
-    };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, [session, state?.phase, onAction, help]);
+  const movement = useMovement(active, net.move);
+  const setControl = useCallback((value: 'manual' | 'motion') => setControlMode(value), []);
   async function perform(task: () => Promise<unknown>) {
     setError('');
     try {
@@ -222,9 +88,89 @@ export default function App() {
       setError((e as Error).message);
     }
   }
+  const revive = useCallback((id: string) => {
+    void request('raid:revive', { targetId: id }).catch((e) => setError((e as Error).message));
+  }, []);
+  useEffect(() => {
+    if (finished) camera.stop();
+  }, [finished, camera.stop]);
+  useEffect(() => {
+    if (!session || !net.connected) return;
+    void request('room:ready', {
+      ready: status.current.local?.ready ?? false,
+      camera: Boolean(camera.stream),
+      controlMode,
+    }).catch(() => {});
+  }, [camera.stream, controlMode, session, net.connected]);
+  useEffect(() => {
+    if (!session) camera.stop();
+  }, [session, camera.stop]);
+  useEffect(() => {
+    if (net.joinUrl)
+      void QRCode.toDataURL(net.joinUrl, { width: 208, margin: 2, errorCorrectionLevel: 'M' })
+        .then(setQr)
+        .catch(() => setQr(''));
+  }, [net.joinUrl]);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (
+        !status.current.active ||
+        e.repeat ||
+        (e.target as HTMLElement).closest('input,textarea,select,[role="dialog"]')
+      )
+        return;
+      const action = (
+        { j: 'punch', i: 'kick', k: 'guard', l: 'dodge', e: 'jump', ' ': 'special' } as Record<
+          string,
+          Action
+        >
+      )[e.key.toLowerCase()];
+      if (action) {
+        e.preventDefault();
+        onAction(action);
+      }
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        const { state: s, local: h } = status.current;
+        if (!s?.raid || !h) return;
+        const down = Object.values(s.raid.heroes)
+          .filter((v) => v.downedUntil !== null && !v.eliminated && v.connected)
+          .sort((a, b) => {
+            const distance = (v: typeof a) =>
+              s.phase === 'REALITY'
+                ? Math.hypot(h.screen.x - v.screen.x, h.screen.y - v.screen.y)
+                : Math.hypot(
+                    h.fighter.position.x - v.fighter.position.x,
+                    h.fighter.position.z - v.fighter.position.z,
+                  );
+            return distance(a) - distance(b);
+          })[0];
+        if (down) revive(down.id);
+      }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [onAction, revive]);
+  useEffect(() => {
+    if (!help) return;
+    const prior = document.activeElement as HTMLElement;
+    closeHelp.current?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setHelp(false);
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        closeHelp.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('keydown', key);
+      prior?.focus();
+    };
+  }, [help]);
   async function create(practice: boolean) {
     if (busy) return;
-    setBusy(practice ? 'training' : 'create');
+    setBusy('create');
     setError('');
     unlockAudio();
     try {
@@ -235,15 +181,17 @@ export default function App() {
         signal: AbortSignal.timeout(18000),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Could not create the encounter.');
-      net.accept(await request<RoomReply>('room:create', { encounterId: data.id, practice }));
+      if (!response.ok) throw new Error(data.error || 'Could not prepare the raid.');
+      net.accept(
+        await request<RoomReply>('room:create', {
+          encounterId: data.id,
+          practice,
+          ...(name.trim() ? { name: name.trim() } : {}),
+        }),
+      );
       window.scrollTo(0, 0);
     } catch (e) {
-      setError(
-        (e as Error).name === 'TimeoutError'
-          ? 'The director timed out. Select a preset and retry.'
-          : (e as Error).message,
-      );
+      setError((e as Error).message);
     } finally {
       setBusy('');
     }
@@ -252,7 +200,12 @@ export default function App() {
     setBusy('join');
     unlockAudio();
     await perform(async () => {
-      net.accept(await request<RoomReply>('room:join', { code: code.trim().toUpperCase() }));
+      net.accept(
+        await request<RoomReply>('room:join', {
+          code: code.trim().toUpperCase(),
+          ...(name.trim() ? { name: name.trim() } : {}),
+        }),
+      );
       window.scrollTo(0, 0);
     });
     setBusy('');
@@ -268,36 +221,44 @@ export default function App() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('Copy is unavailable here. Select and copy the invite link below.');
+      setError('Select and copy the invite link below.');
     }
   }
-  const lobby = state && ['LOBBY', 'CALIBRATING'].includes(state.phase),
-    finished = state && ['VICTORY', 'DEFEAT'].includes(state.phase);
-  const theme =
-    state?.spec.arena === 'shadow_forest'
-      ? 'shadow'
-      : state?.spec.arena === 'storm'
-        ? 'storm'
-        : 'ember';
+  const cameraPanel = (
+    <CameraPanel
+      camera={camera}
+      role="hero"
+      onAction={onAction}
+      onTarget={noTarget}
+      onMode={setControl}
+      motion={motion}
+      onMotionChange={setMotion}
+      mode={mode}
+      onTrackingModeChange={setMode}
+      onMove={movement.onMotion}
+    />
+  );
   return (
     <div className={`app ${state ? 'in-room' : ''}`}>
       <header className="site-header">
-        <Logo
+        <button
+          className="brand"
+          aria-label="GHOSTWIRE home"
           onClick={() => {
-            if (!session) {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else void leave();
+            if (session) void leave();
+            else window.scrollTo(0, 0);
           }}
-        />
+        >
+          <span className="brand-mark">
+            <Zap size={21} fill="currentColor" />
+          </span>
+          <span>
+            GHOSTWIRE<span className="brand-sub">COOPERATIVE REALITY RAID</span>
+          </span>
+        </button>
         <nav>
-          {!state && (
-            <span className="nav-edition">
-              AN EXPERIMENT IN HUMAN PLAY <span>001</span>
-            </span>
-          )}
           <button className="nav-link" onClick={() => setHelp(true)}>
             How to play
-            <ArrowUpRight size={14} />
           </button>
           <button
             className="icon-button"
@@ -315,185 +276,154 @@ export default function App() {
               <X size={14} />
             </button>
           ) : (
-            <button
-              className="button secondary small"
-              onClick={() => {
-                setTab('join');
-                document.getElementById('launch')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
+            <a className="button secondary small" href="#launch" onClick={() => setTab('join')}>
               Join a raid
               <ArrowRight size={14} />
-            </button>
+            </a>
           )}
         </nav>
       </header>
-      {!state || !session ? (
+      {!state || !session || !local ? (
         <main className="home-main">
           <section className="home-hero">
             <div className="hero-copy">
-              <div className="eyebrow">
-                <span className="tiny-dot green" /> TWO PLAYERS. ZERO CONTROLLERS.
-              </div>
+              <span className="eyebrow">
+                <span className="tiny-dot green" />
+                2–4 HEROES. ONE COLOSSUS.
+              </span>
               <h1>
-                BREAK THE
+                NO HERO
                 <br />
-                FOURTH
+                WINS
                 <br />
-                <span>WALL.</span>
+                <span>ALONE.</span>
                 <span className="title-star">✳</span>
               </h1>
               <p className="hero-description">
                 Your body is the controller.
                 <br />
-                Your friend is the boss.
+                Your friends are your squad.
                 <br />
-                <strong>Reality is the final arena.</strong>
+                <strong>Take down the impossible. Together.</strong>
               </p>
               <a className="text-link" href="#launch">
-                Step into the rift
+                Assemble your squad
                 <ArrowRight size={18} />
               </a>
               <div className="hero-tags">
                 <span>
                   <Users size={13} />
-                  2-player 3D battles
+                  2–4 player co-op
                 </span>
                 <span>
-                  <ScanIcon />
-                  Motion controlled
+                  <Shield size={13} />
+                  AI boss
                 </span>
                 <span>
                   <Sparkles size={13} />
-                  AI directed
+                  Motion controlled
                 </span>
               </div>
             </div>
             <div className="hero-art">
               <div className="art-grid" />
-              <div className="art-corner top-left" />
-              <div className="art-corner bottom-right" />
-              <span className="art-index">ANOMALY // 001</span>
+              <span className="art-index">RAID TARGET // 001</span>
               <RiftArtwork theme={preset || 'ember'} />
               <div className="art-callout">
                 <span className="tiny-dot green" />
                 <div>
-                  <strong>THIS COULD BE YOUR FRIEND.</strong>
-                  <small>One camera. One very unfair advantage.</small>
+                  <strong>TOO POWERFUL FOR ONE.</strong>
+                  <small>Break its shield with your team.</small>
                 </div>
-                <Crosshair size={22} />
-              </div>
-              <div className="art-coordinates">
-                25.04° N<br />
-                76.28° E<br />
-                <span>RIFT ACTIVE</span>
+                <Users size={22} />
               </div>
             </div>
           </section>
           <section className="launch-section" id="launch">
             <div className="launch-intro">
-              <span className="eyebrow">THE NEXT WORLD STARTS HERE</span>
+              <span className="eyebrow">THE SQUAD STARTS HERE</span>
               <h2>
-                A story.
-                <br /> A friend.
-                <br /> <em>A fight.</em>
+                One boss.
+                <br />
+                All of us.
               </h2>
               <p>
-                Build your encounter, invite your rival, and watch the game break into their room.
+                Link your strikes, combine your powers, and bring your teammates back into the
+                fight. Everyone plays a hero.
               </p>
-              <div className="online-note">
-                <span className={`tiny-dot ${net.connected ? 'green' : ''}`} />
-                {net.connected ? 'RAID SERVER ONLINE' : 'CONNECTING TO RAID SERVER…'}
-              </div>
             </div>
             <div className="launch-panel">
+              <span className={`server-status ${net.connected ? 'online' : ''}`}>
+                {net.connected ? 'RAID SERVER ONLINE' : 'CONNECTING TO RAID SERVER…'}
+              </span>
               <div className="launch-tabs">
                 <button
-                  className={tab === 'create' ? 'selected' : ''}
+                  className={tab === 'create' ? 'active' : ''}
                   onClick={() => setTab('create')}
                 >
-                  <Swords size={16} />
-                  Create a battle
+                  Create a squad
                 </button>
-                <button className={tab === 'join' ? 'selected' : ''} onClick={() => setTab('join')}>
-                  <Link2 size={16} />
-                  Join as boss
+                <button className={tab === 'join' ? 'active' : ''} onClick={() => setTab('join')}>
+                  Join a squad
                 </button>
               </div>
+              <label className="field-label" htmlFor="hero-name">
+                YOUR HERO NAME
+              </label>
+              <input
+                id="hero-name"
+                className="raid-input"
+                aria-label="Your hero name"
+                maxLength={20}
+                placeholder="Optional · choose your callsign"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
               {tab === 'create' ? (
                 <>
                   <label className="field-label" htmlFor="story">
-                    SET THE SCENE <span>YOUR STORY, PLAYABLE</span>
+                    SET THE SCENE
                   </label>
-                  <div className="prompt-field">
-                    <Sparkles size={18} />
-                    <textarea
-                      id="story"
-                      maxLength={500}
-                      value={prompt}
-                      onChange={(e) => {
-                        setPrompt(e.target.value);
-                        setPreset(undefined);
-                      }}
-                      placeholder="A thunder knight faces a volcanic titan…"
-                    />
-                    <span>{prompt.length}/500</span>
-                  </div>
-                  <div className="preset-label">OR CHOOSE A WORLD</div>
-                  <div className="preset-cards">
-                    {Object.keys(prompts).map((key, i) => (
+                  <textarea
+                    id="story"
+                    maxLength={500}
+                    value={prompt}
+                    onChange={(e) => {
+                      setPrompt(e.target.value);
+                      setPreset(undefined);
+                    }}
+                  />
+                  <span className="field-label">OR CHOOSE A WORLD</span>
+                  <div className="world-options">
+                    {worlds.map(([id, title, detail]) => (
                       <button
-                        key={key}
-                        className={`preset-card preset-${key} ${preset === key ? 'selected' : ''}`}
-                        onClick={() => {
-                          setPreset(key);
-                          setPrompt(prompts[key]);
-                        }}
+                        key={id}
+                        className={`world-option ${preset === id ? 'selected' : ''}`}
+                        onClick={() => setPreset(id)}
                       >
-                        <span className="preset-symbol">{i === 0 ? '◈' : i === 1 ? '☾' : 'ϟ'}</span>
-                        <span>
-                          <strong>{names[key]}</strong>
-                          <small>
-                            {i === 0
-                              ? 'FIRE & THUNDER'
-                              : i === 1
-                                ? 'SHADOW & MOONLIGHT'
-                                : 'SKY & ASH'}
-                          </small>
-                        </span>
-                        {preset === key && <Check size={14} />}
+                        <strong>{title}</strong>
+                        <small>{detail}</small>
                       </button>
                     ))}
                   </div>
                   <button
-                    className="button primary full create-button"
+                    className="button primary full"
+                    disabled={Boolean(busy) || !net.connected || prompt.trim().length < 3}
                     onClick={() => void create(false)}
-                    disabled={!!busy || !net.connected || prompt.trim().length < 3}
                   >
-                    {busy === 'create' ? (
-                      <>
-                        <LoaderCircle className="spin" size={18} />
-                        Building your encounter…
-                      </>
-                    ) : (
-                      <>
-                        Create a raid
-                        <ArrowUpRight size={20} />
-                      </>
-                    )}
+                    {busy ? 'Preparing encounter…' : 'Create a raid'}
+                    <ArrowRight size={18} />
                   </button>
-                  <div className="training-row">
-                    <span>No opponent yet?</span>
-                    <button
-                      onClick={() => void create(true)}
-                      disabled={!!busy || !net.connected || prompt.trim().length < 3}
-                    >
-                      {busy === 'training' ? 'Opening training…' : 'Try solo training'}
-                      <ArrowRight size={14} />
-                    </button>
-                  </div>
+                  <button
+                    className="button subtle full"
+                    disabled={Boolean(busy) || !net.connected}
+                    onClick={() => void create(true)}
+                  >
+                    Train with AI ally
+                  </button>
                   <p className="launch-footnote">
-                    No downloads. No account. Camera optional. Curated encounters always available.
+                    Main raid: 2–4 human heroes. Training adds a clearly labeled AI teammate. Camera
+                    optional.
                   </p>
                 </>
               ) : (
@@ -502,23 +432,16 @@ export default function App() {
                     e.preventDefault();
                     void join();
                   }}
-                  className="join-form"
                 >
-                  <span className="eyebrow">THE OTHER SIDE OF THE SCREEN</span>
-                  <h3>Become the boss.</h3>
-                  <p>
-                    Ask your hero for their six-character raid code, or scan their QR code with your
-                    phone.
-                  </p>
-                  <label className="field-label" htmlFor="room-code">
-                    RAID CODE
+                  <label className="field-label" htmlFor="raid-code">
+                    SIX-CHARACTER RAID CODE
                   </label>
                   <input
-                    id="room-code"
+                    id="raid-code"
                     className="code-input"
-                    autoComplete="off"
-                    spellCheck={false}
+                    aria-label="Raid code"
                     maxLength={6}
+                    autoComplete="off"
                     value={code}
                     onChange={(e) =>
                       setCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ''))
@@ -527,19 +450,13 @@ export default function App() {
                   />
                   <button
                     className="button primary full"
-                    type="submit"
-                    disabled={!!busy || code.length !== 6 || !net.connected}
+                    disabled={Boolean(busy) || code.length !== 6 || !net.connected}
                   >
-                    {busy === 'join' ? (
-                      <LoaderCircle className="spin" size={18} />
-                    ) : (
-                      <Gamepad2 size={18} />
-                    )}
-                    Possess the boss
+                    Join the squad
                     <ArrowRight size={18} />
                   </button>
                   <p className="launch-footnote">
-                    Your camera starts only when you enable it. Touch controls work from the start.
+                    You join as a hero. The boss is controlled by the game.
                   </p>
                 </form>
               )}
@@ -555,32 +472,28 @@ export default function App() {
               )}
             </div>
           </section>
-          <section className="how-grid" id="how-to-play">
+          <section className="how-grid">
             {[
-              {
-                n: '01',
-                icon: Sparkles,
-                title: 'Imagine the impossible.',
-                text: 'Describe a showdown. The director assembles an encounter from battle-tested mechanics.',
-              },
-              {
-                n: '02',
-                icon: Users,
-                title: 'Give your friend the power.',
-                text: 'They join on their phone. Their movements become the monster’s attacks. Yours keep you alive.',
-              },
-              {
-                n: '03',
-                icon: Globe,
-                title: 'Let reality in.',
-                text: 'At half health, the arena fractures. Their live room becomes the final battlefield.',
-              },
-            ].map((c) => (
-              <article key={c.n}>
-                <span className="step-number">{c.n} /</span>
-                <c.icon size={22} />
-                <h3>{c.title}</h3>
-                <p>{c.text}</p>
+              [
+                '01',
+                'Break the Aegis.',
+                'Two heroes hit within two seconds to open a six-second damage window.',
+              ],
+              [
+                '02',
+                'Fight as one.',
+                'Coordinate Overdrives for a Unity Burst. Dodge marked attacks and rescue fallen allies.',
+              ],
+              [
+                '03',
+                'Breach reality.',
+                'At half health, the final phase enters each hero’s optional live camera view.',
+              ],
+            ].map(([n, title, text]) => (
+              <article key={n}>
+                <span className="step-number">{n} /</span>
+                <h3>{title}</h3>
+                <p>{text}</p>
               </article>
             ))}
           </section>
@@ -590,15 +503,14 @@ export default function App() {
           <div className="room-heading">
             <div>
               <span className="eyebrow">
-                {state.practice ? 'SOLO TRAINING' : `RAID ${state.code}`}{' '}
-                <span className="separator">/</span>{' '}
-                {session.role === 'hero' ? 'YOU ARE THE HERO' : 'YOU ARE THE BOSS'}
+                {state.practice ? 'TRAINING WITH AI ALLY' : `SQUAD ${state.code}`} /{' '}
+                {local.name.toUpperCase()}
+                {leader ? ' · SQUAD LEADER' : ''}
               </span>
               <h1>{state.spec.title}</h1>
             </div>
             <div className="room-heading-meta">
               <span className={`connection-pill ${net.connected ? 'online' : ''}`}>
-                <Radio size={13} />
                 {net.connected ? 'Connected' : 'Reconnecting…'}
               </span>
               <button
@@ -609,18 +521,13 @@ export default function App() {
                   else
                     void match.current
                       ?.requestFullscreen()
-                      .catch(() => setError('Fullscreen is unavailable in this browser.'));
+                      .catch(() => setError('Fullscreen is unavailable.'));
                 }}
               >
                 <Maximize2 size={17} />
               </button>
             </div>
           </div>
-          {!net.connected && (
-            <p className="inline-error" role="status">
-              Connection interrupted. Reconnecting automatically; the server pauses the raid.
-            </p>
-          )}
           {error && (
             <div className="inline-error" role="alert">
               {error}
@@ -635,183 +542,156 @@ export default function App() {
           )}
           {lobby ? (
             <div className="lobby-grid">
-              <section className={`encounter-card encounter-${theme}`}>
+              <section className="encounter-card">
                 <div className="encounter-meta">
-                  <span className="eyebrow">ENCOUNTER BRIEF</span>
+                  <span className="eyebrow">COOPERATIVE RAID BRIEF</span>
                   <span className="source-chip">
-                    <Sparkles size={12} />
                     {state.source === 'ai' ? 'AI DIRECTED' : 'CURATED ENCOUNTER'}
                   </span>
                 </div>
-                <RiftArtwork theme={theme} />
+                <RiftArtwork
+                  theme={
+                    state.spec.arena === 'storm'
+                      ? 'storm'
+                      : state.spec.arena === 'shadow_forest'
+                        ? 'shadow'
+                        : 'ember'
+                  }
+                />
                 <div className="encounter-details">
-                  <span className="eyebrow">YOUR OPPONENT</span>
+                  <span className="eyebrow">ONE BOSS · YOUR WHOLE SQUAD</span>
                   <h2>{state.spec.bossName}</h2>
                   <p>“{state.spec.introLine}”</p>
                   <div className="encounter-traits">
-                    <span>
-                      <Shield size={14} />
-                      {state.spec.bossMaxHp} HP
-                    </span>
-                    <span>
-                      <Zap size={14} />
-                      BREACH AT 50%
-                    </span>
-                    <span>{state.spec.arena.replace('_', ' ').toUpperCase()}</span>
+                    <span>2–4 HEROES</span>
+                    <span>TEAM SHIELD BREAK</span>
+                    <span>3 MINUTE RAID</span>
                   </div>
                   <p className="source-note">{state.sourceNote}</p>
+                  <p>
+                    Solo damage is blocked by Soul Aegis. Two different heroes must land hits within
+                    two seconds. Then attack during the six-second opening.
+                  </p>
                 </div>
               </section>
               <div className="lobby-right">
                 <section className="room-invite">
                   <div className="section-heading">
-                    <h3>
-                      {state.practice
-                        ? 'Your training room'
-                        : session.role === 'hero'
-                          ? 'Invite your rival'
-                          : 'You’re in. Take control.'}
-                    </h3>
+                    <h3>{state.practice ? 'Training squad' : 'Invite your teammates'}</h3>
                     <Users size={18} />
                   </div>
-                  {!state.practice && session.role === 'hero' && (
-                    <div className="invite-content">
-                      {qr && (
-                        <img
-                          src={qr}
-                          alt={`Scan to join raid ${state.code}`}
-                          width="126"
-                          height="126"
-                        />
-                      )}
-                      <div>
-                        <span className="field-label">RAID CODE</span>
-                        <strong className="room-code">{state.code}</strong>
-                        <button className="text-link" onClick={() => void copy()}>
-                          {copied ? <Check size={14} /> : <Copy size={14} />}{' '}
-                          {copied ? 'Link copied' : 'Copy invite link'}
-                        </button>
+                  {!state.practice && (
+                    <>
+                      <div className="invite-content">
+                        {qr && (
+                          <img
+                            src={qr}
+                            alt={`Scan to join raid ${state.code}`}
+                            width={126}
+                            height={126}
+                          />
+                        )}
+                        <div>
+                          <span className="field-label">RAID CODE</span>
+                          <strong className="room-code">{state.code}</strong>
+                          <button className="text-link" onClick={() => void copy()}>
+                            <Copy size={14} />
+                            {copied ? 'Link copied' : 'Copy invite link'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {!state.practice && session.role === 'hero' && (
-                    <input
-                      className="invite-url"
-                      aria-label="Invite URL"
-                      value={net.joinUrl}
-                      readOnly
-                      onFocus={(e) => e.target.select()}
-                    />
-                  )}
-                  {state.practice && (
-                    <p>
-                      A training opponent controls the boss. Play the complete raid, learn the
-                      timing, then bring a friend.
-                    </p>
-                  )}
-                  {session.role === 'boss' && (
-                    <p>
-                      Your hero is waiting. Enable a camera for motion controls, or get straight
-                      into the fight with the touch buttons.
-                    </p>
+                      <input
+                        className="invite-url"
+                        aria-label="Invite URL"
+                        value={net.joinUrl}
+                        readOnly
+                        onFocus={(e) => e.target.select()}
+                      />
+                    </>
                   )}
                   <div className="players-list">
-                    {(['hero', 'boss'] as const).map((r) => (
-                      <div key={r}>
-                        <span className={`player-avatar ${r}`}>
-                          {r === 'hero' ? <Swords size={16} /> : <Crosshair size={16} />}
-                        </span>
+                    {Object.values(state.raid!.heroes).map((h) => (
+                      <div key={h.id}>
+                        <span className="squad-color" style={{ background: h.color }} />
                         <span>
                           <strong>
-                            {r === 'hero' ? 'Hero' : state.practice ? 'Training boss' : 'Boss'}
-                            {session.role === r ? ' (you)' : ''}
+                            {h.name}
+                            {h.id === local.id ? ' (you)' : ''}
+                            {h.id === state.raid!.hostId ? ' · leader' : ''}
                           </strong>
                           <small>
-                            {state.players[r].connected
-                              ? state.players[r].ready
+                            {!h.connected
+                              ? 'Reconnecting…'
+                              : h.ready
                                 ? 'Ready to raid'
-                                : 'Preparing controls'
-                              : 'Waiting to join…'}
+                                : h.bot
+                                  ? 'AI teammate'
+                                  : 'Preparing controls'}
                           </small>
                         </span>
-                        {state.players[r].ready ? (
-                          <Check className="ready-check" size={16} />
+                        {h.ready ? (
+                          <Check size={16} className="ready-check" />
                         ) : (
                           <span className="waiting-dot" />
                         )}
                       </div>
                     ))}
                   </div>
+                  <p className="coop-lobby-note">
+                    {state.practice
+                      ? 'Echo is an AI teammate. The same teamwork rules apply.'
+                      : `${Object.keys(state.raid!.heroes).length}/4 heroes joined. At least two connected, ready heroes are required.`}
+                  </p>
                   <button
-                    className={`button ${state.players[session.role].ready ? 'secondary' : 'primary'} full`}
+                    className={`button ${local.ready ? 'secondary' : 'primary'} full`}
+                    disabled={!net.connected}
                     onClick={() =>
                       void perform(() =>
                         request('room:ready', {
-                          ready: !state.players[session.role].ready,
+                          ready: !local.ready,
                           camera: Boolean(camera.stream),
                           controlMode,
                         }),
                       )
                     }
-                    disabled={!net.connected}
                   >
-                    {state.players[session.role].ready ? (
-                      <>
-                        <Check size={17} />
-                        Ready · click to unready
-                      </>
-                    ) : (
-                      <>
-                        I’m ready
-                        <Check size={17} />
-                      </>
-                    )}
+                    {local.ready ? 'Ready · click to unready' : 'I’m ready'}
+                    <Check size={17} />
                   </button>
-                  {session.role === 'hero' ? (
+                  {leader ? (
                     <button
                       className="button primary full begin-button"
+                      disabled={
+                        !net.connected ||
+                        Object.keys(state.raid!.heroes).length < 2 ||
+                        Object.values(state.raid!.heroes).some((h) => !h.ready || !h.connected)
+                      }
                       onClick={() => {
                         unlockAudio();
                         void perform(() => request('battle:start', { waitForRenderer: true }));
                       }}
-                      disabled={
-                        !net.connected || !state.players.hero.ready || !state.players.boss.ready
-                      }
                     >
                       Begin raid
                       <ArrowRight size={18} />
                     </button>
                   ) : (
-                    <p className="waiting-caption">The hero starts when you’re both ready.</p>
+                    <p className="waiting-caption">
+                      The squad leader begins when everyone is ready.
+                    </p>
                   )}
                 </section>
-                <CameraPanel
-                  camera={camera}
-                  role={session.role}
-                  onAction={onAction}
-                  onTarget={net.aim}
-                  onMode={setMode}
-                  motion={motion}
-                  onMotionChange={setMotion}
-                  mode={
-                    trackingMode ??
-                    (session.role === 'boss' && window.innerWidth < 700 ? 'hand' : 'pose')
-                  }
-                  onTrackingModeChange={setTrackingMode}
-                  onMove={movement.onMotion}
-                />
+                {cameraPanel}
               </div>
             </div>
           ) : (
             <>
-              <Health state={state} role={session.role} />
+              <RaidHealth state={state} />
               <div className="battle-layout">
                 <div className="battle-main">
                   <GameStage
                     state={state}
-                    role={session.role}
-                    stream={session.role === 'boss' ? camera.stream : peer.remote}
-                    onAim={net.aim}
+                    role="hero"
+                    stream={camera.stream}
                     onReady={() => {
                       void request('battle:render-ready').catch(() => {});
                     }}
@@ -819,71 +699,40 @@ export default function App() {
                   {finished ? (
                     <Result
                       state={state}
-                      role={session.role}
+                      role="hero"
                       onRematch={() => void perform(() => request('battle:rematch'))}
                       onLeave={() => void leave()}
                     />
                   ) : (
                     <Controls
                       state={state}
-                      role={session.role}
+                      role="hero"
                       onAction={onAction}
-                      connected={net.connected && !help}
+                      connected={active}
                       onMove={movement.onTouch}
                     />
                   )}
                 </div>
                 <aside className="battle-sidebar">
+                  <Squad state={state} playerId={local.id} onRevive={revive} />
                   <div className="mission-card">
                     <span className="eyebrow">
-                      {state.phase === 'REALITY' ? 'FINAL PHASE' : 'YOUR OBJECTIVE'}
+                      {state.phase === 'REALITY' ? 'FINAL PHASE' : 'TEAM OBJECTIVE'}
                     </span>
-                    <h3>
-                      {session.role === 'hero' ? 'Break the colossus.' : 'Defend your reality.'}
-                    </h3>
+                    <h3>Bring it down. Together.</h3>
                     <p>
-                      {session.role === 'hero'
-                        ? 'Guard or evade the glowing attack zones. Strike after the boss attacks for bonus damage. Overdrive recharges every 8 seconds.'
-                        : 'Use swipe and power attacks to pressure the hero. Guard to reduce damage. In the breach, aim your hand or touch the arena before striking.'}
+                      Link two heroes’ hits. Pair Overdrives within 1.8 seconds for a 40-damage
+                      Unity Burst. Reach a downed ally and press F to revive; stay still for 3
+                      seconds.
                     </p>
                     <div className="raid-clock">
-                      <span>RAID TIME</span>
+                      <span>BEFORE CATACLYSM</span>
                       <strong>
-                        {Math.floor(state.elapsed / 60000)
-                          .toString()
-                          .padStart(2, '0')}
-                        :
-                        {Math.floor((state.elapsed / 1000) % 60)
-                          .toString()
-                          .padStart(2, '0')}
+                        {Math.max(0, Math.ceil((state.raid!.limit - state.elapsed) / 1000))}s
                       </strong>
                     </div>
                   </div>
-                  <CameraPanel
-                    camera={camera}
-                    role={session.role}
-                    onAction={onAction}
-                    onTarget={net.aim}
-                    onMode={setMode}
-                    motion={motion}
-                    onMotionChange={setMotion}
-                    mode={
-                      trackingMode ??
-                      (session.role === 'boss' && window.innerWidth < 700 ? 'hand' : 'pose')
-                    }
-                    onTrackingModeChange={setTrackingMode}
-                    onMove={movement.onMotion}
-                  />
-                  {!state.practice && (
-                    <div className="peer-status">
-                      <VideoIcon />
-                      {peer.status}
-                      <button className="text-link" onClick={peer.retry}>
-                        Retry link
-                        <ChevronRight size={12} />
-                      </button>
-                    </div>
-                  )}
+                  {cameraPanel}
                 </aside>
               </div>
             </>
@@ -891,13 +740,11 @@ export default function App() {
         </main>
       )}
       <footer className="site-footer">
-        <span>
-          GHOSTWIRE <span className="muted">/</span> REALITY RAID
-        </span>
-        <span>MADE FOR THE WAY HUMANS PLAY.</span>
+        <span>GHOSTWIRE / REALITY RAID</span>
+        <span>NO HERO WINS ALONE.</span>
         <span className="footer-track">
           <span className="tiny-dot green" />
-          MAKE ROOM FOR PLAY
+          2–4 PLAYER CO-OP
         </span>
       </footer>
       {help && (
@@ -910,58 +757,37 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              ref={helpClose}
+              ref={closeHelp}
               className="icon-button close-modal"
               aria-label="Close instructions"
               onClick={() => setHelp(false)}
             >
               <X size={20} />
             </button>
-            <span className="eyebrow">A QUICK FIELD GUIDE</span>
-            <h2 id="help-title">Enter. Fight. Breach.</h2>
-            <ol>
-              <li>
-                <strong>Choose a world.</strong>Create a raid and invite a friend using the QR code.
-                Or choose solo training.
-              </li>
-              <li>
-                <strong>Get ready.</strong>Camera is optional. If enabled, hold still with your
-                shoulders and wrists visible until calibrated.
-              </li>
-              <li>
-                <strong>Play the hero.</strong>
-                <kbd>J</kbd> strike, <kbd>K</kbd> guard, <kbd>L</kbd> evade, <kbd>Space</kbd>{' '}
-                overdrive, <kbd>I</kbd> kick, <kbd>E</kbd> jump. Hold <kbd>WASD</kbd> or arrows to
-                walk and <kbd>Shift</kbd> to run.
-              </li>
-              <li>
-                <strong>Be the boss.</strong>
-                <kbd>J</kbd> swipe, <kbd>K</kbd> guard, <kbd>Space</kbd> power. All controls are
-                also touch buttons.
-              </li>
-              <li>
-                <strong>Break reality.</strong>At 50% boss health the arena fractures. With a live
-                boss camera, the room becomes the backdrop. Aim your hand or pointer, then attack.
-              </li>
-            </ol>
+            <span className="eyebrow">SQUAD FIELD GUIDE</span>
+            <h2 id="help-title">Team up. Break the Aegis.</h2>
+            <p>
+              Everyone controls a hero. Create a raid, invite 1–3 teammates, ready up, and let the
+              leader begin. No player controls the boss.
+            </p>
+            <p>
+              Two different heroes must land hits within 2 seconds to open Soul Aegis for 6 seconds.
+              Pair Overdrives within 1.8 seconds for a Unity Burst. You cannot damage each other.
+            </p>
+            <p>
+              A downed hero has 20 seconds to be rescued. Move close and press <kbd>F</kbd> or their
+              Revive button; stay still for 3 seconds. Movement, attacking, or taking damage
+              interrupts the revive. A total squad wipe or the 180-second Cataclysm means defeat.
+            </p>
             <ControlsGuide />
             <p>
-              Attack zones lock when a move starts. Time your defense before the ring fills. Boss
-              armor is weaker just after an attack.
-            </p>
-            <p className="muted">
-              Play seated or standing with small, comfortable movements. No audio or video is
-              recorded.
+              At half boss health, all heroes enter Reality Breach. Your optional local camera
+              becomes your backdrop; shared hero positions and attack zones stay synchronized.
+              Camera video stays on your device.
             </p>
           </section>
         </div>
       )}
     </div>
   );
-}
-function ScanIcon() {
-  return <Crosshair size={13} />;
-}
-function VideoIcon() {
-  return <Radio size={13} />;
 }

@@ -51,149 +51,91 @@ const ready = (socket: Socket) =>
   req(socket, 'room:ready', { ready: true, camera: false, controlMode: 'manual' });
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-describe('audit: interrupted and repeated room actions', () => {
-  it('waits for both real player renderers before advancing the opening countdown', async () => {
-    const hero = await client(),
-      boss = await client();
-    const room = await create(hero);
-    await req(boss, 'room:join', { code: room.session.code });
-    await ready(hero);
-    await ready(boss);
-    expect((await req(hero, 'battle:start', { waitForRenderer: true })).ok).toBe(true);
-    await wait(200);
-    const state = server.rooms.get(room.session.code)!.state;
-    const clock = state.clock;
-    expect(state.renderPending).toBe(true);
-    await req(hero, 'battle:render-ready');
-    await wait(200);
-    expect(state.clock).toBe(clock);
-    await req(boss, 'battle:render-ready');
+describe('cooperative recovery and replay audit', () => {
+  it('waits for every real renderer, including the third hero', async () => {
+    const host = await client(),
+      p2 = await client(),
+      p3 = await client();
+    const r = await create(host);
+    await req(p2, 'room:join', { code: r.session.code });
+    await req(p3, 'room:join', { code: r.session.code });
+    for (const p of [host, p2, p3]) await ready(p);
+    expect((await req(host, 'battle:start', { waitForRenderer: true })).ok).toBe(true);
+    const s = server.rooms.get(r.session.code)!.state;
+    const clock = s.clock;
+    await req(host, 'battle:render-ready');
+    await req(p2, 'battle:render-ready');
     await wait(150);
-    expect(state.renderPending).toBe(false);
-    expect(state.clock).toBeGreaterThan(clock);
-    await req(hero, 'room:leave');
-  });
-  it('restores a refreshed host lobby before the first boss joins', async () => {
-    const hero = await client(),
-      returning = await client(),
-      boss = await client();
-    const room = await create(hero);
-    await ready(hero);
-    hero.disconnect();
+    expect(s.clock).toBe(clock);
+    await req(p3, 'battle:render-ready');
     await wait(100);
-    expect(server.rooms.get(room.session.code)!.state.phase).toBe('DISCONNECTED');
-    const resumed = await req<RoomReply>(returning, 'room:resume', room.session);
-    if (!resumed.ok) throw new Error(resumed.error);
-    expect(resumed.data.state.phase).toBe('LOBBY');
-    expect(resumed.data.state.players.hero.ready).toBe(true);
-    expect(resumed.data.state.reconnectUntil).toBeNull();
-    expect((await req(boss, 'room:join', { code: room.session.code })).ok).toBe(true);
-    await ready(boss);
-    expect((await req(returning, 'battle:start')).ok).toBe(true);
-    await req(returning, 'room:leave');
+    expect(s.renderPending).toBe(false);
+    expect(s.clock).toBeGreaterThan(clock);
+    for (const p of [p3, p2, host]) await req(p, 'room:leave');
   });
-  it('revokes the stale socket after token resume and rejects cooldown flooding', async () => {
-    const oldHero = await client(),
-      boss = await client(),
-      replacement = await client();
-    const room = await create(oldHero);
-    expect((await req(boss, 'room:join', { code: room.session.code })).ok).toBe(true);
-    const closed = new Promise<{ reason: string }>((resolve) =>
-      oldHero.once('room:closed', resolve),
-    );
-    expect((await req(replacement, 'room:resume', room.session)).ok).toBe(true);
-    expect((await closed).reason).toContain('another tab');
-    expect((await req(oldHero, 'webrtc:config')).ok).toBe(false);
-    await req(oldHero, 'room:leave');
-    expect(server.rooms.has(room.session.code)).toBe(true);
-    await ready(replacement);
-    await ready(boss);
-    expect((await req(replacement, 'battle:start')).ok).toBe(true);
-    await wait(2900);
-    expect((await req(oldHero, 'gesture:intent', { action: 'punch', sequence: 1 })).ok).toBe(false);
-    const replies = await Promise.all(
-      Array.from({ length: 20 }, (_, i) =>
-        req(boss, 'gesture:intent', { action: 'swipe', sequence: i + 1 }),
-      ),
-    );
-    expect(replies.filter((reply) => reply.ok)).toHaveLength(1);
-    await wait(900);
-    expect(server.rooms.get(room.session.code)!.state.heroHp).toBe(90);
-    expect((await req(boss, 'gesture:intent', { action: 'swipe', sequence: 1 })).ok).toBe(false);
-    expect((await req(boss, 'boss:target', { x: -1, y: 4 })).ok).toBe(false);
+  it('restores a lone host lobby before the first teammate joins', async () => {
+    const host = await client(),
+      replacement = await client(),
+      peer = await client();
+    const r = await create(host);
+    await ready(host);
+    host.disconnect();
+    await wait(80);
+    expect(server.rooms.get(r.session.code)!.state.phase).toBe('DISCONNECTED');
+    const resumed = await req<RoomReply>(replacement, 'room:resume', r.session);
+    if (!resumed.ok) throw Error(resumed.error);
+    expect(resumed.data.state.phase).toBe('LOBBY');
+    expect(resumed.data.state.raid!.heroes[r.session.playerId!].ready).toBe(true);
+    expect((await req(peer, 'room:join', { code: r.session.code })).ok).toBe(true);
+    await req(peer, 'room:leave');
     await req(replacement, 'room:leave');
   });
-
-  it('expires a disconnected room, invalidates its token and lets the peer create again', async () => {
-    const hero = await client(),
-      boss = await client(),
+  it('revokes a stale socket and resets every hero’s health, readiness, and effects on rematch', async () => {
+    const host = await client(),
+      peer = await client(),
+      replacement = await client();
+    const r = await create(host);
+    await req(peer, 'room:join', { code: r.session.code });
+    const closed = new Promise<{ reason: string }>((resolve) => host.once('room:closed', resolve));
+    expect((await req(replacement, 'room:resume', r.session)).ok).toBe(true);
+    expect((await closed).reason).toContain('another tab');
+    expect((await req(host, 'gesture:intent', { action: 'punch', sequence: 1 })).ok).toBe(false);
+    await ready(replacement);
+    await ready(peer);
+    await req(replacement, 'battle:start');
+    const old = server.rooms.get(r.session.code)!.state;
+    old.phase = 'DEFEAT';
+    old.raid.heroes[r.session.playerId!].hp = 0;
+    expect((await req(peer, 'battle:rematch')).ok).toBe(false);
+    expect((await req(replacement, 'battle:rematch')).ok).toBe(true);
+    const fresh = server.rooms.get(r.session.code)!.state;
+    expect(fresh.phase).toBe('LOBBY');
+    for (const h of Object.values(fresh.raid.heroes)) {
+      expect(h.hp).toBe(100);
+      expect(h.ready).toBe(false);
+      expect(h.downedUntil).toBeNull();
+    }
+    expect((await req(replacement, 'battle:start')).ok).toBe(false);
+    await req(peer, 'room:leave');
+    await req(replacement, 'room:leave');
+  });
+  it('expires a missing teammate, invalidates their token, and ends a two-person raid honestly', async () => {
+    const host = await client(),
+      peer = await client(),
       returning = await client();
-    const room = await create(hero);
-    const joined = await req<RoomReply>(boss, 'room:join', { code: room.session.code });
-    if (!joined.ok) throw new Error(joined.error);
-    const closed = new Promise<{ reason: string }>((resolve) => hero.once('room:closed', resolve));
-    boss.disconnect();
+    const r = await create(host);
+    const joined = await req<RoomReply>(peer, 'room:join', { code: r.session.code });
+    if (!joined.ok) throw Error(joined.error);
+    await ready(host);
+    await ready(peer);
+    await req(host, 'battle:start');
+    peer.disconnect();
+    await wait(80);
+    const s = server.rooms.get(r.session.code)!.state;
+    s.reconnectUntil = Date.now() - 1;
     await wait(100);
-    const state = server.rooms.get(room.session.code)!.state;
-    expect(state.phase).toBe('DISCONNECTED');
-    // Advance the deadline, not the simulation, to check the actual expiry/cleanup branch.
-    state.reconnectUntil = Date.now() - 1;
-    expect((await closed).reason).toContain('expired');
+    expect(s.phase).toBe('DEFEAT');
     expect((await req(returning, 'room:resume', joined.data.session)).ok).toBe(false);
-    const fresh = await create(hero);
-    expect(fresh.session.code).not.toBe(room.session.code);
-    await req(hero, 'room:leave');
-  });
-
-  it('recovers from an interrupted lobby and resets both readiness gates on rematch', async () => {
-    const hero = await client(),
-      boss = await client(),
-      returning = await client();
-    const room = await create(hero);
-    const joined = await req<RoomReply>(boss, 'room:join', { code: room.session.code });
-    if (!joined.ok) throw new Error(joined.error);
-    await ready(hero);
-    await ready(boss);
-    boss.disconnect();
-    await wait(100);
-    expect((await req(returning, 'room:resume', joined.data.session)).ok).toBe(true);
-    const current = server.rooms.get(room.session.code)!;
-    expect(current.state.phase).toBe('CALIBRATING');
-    expect(current.state.reconnectUntil).toBeNull();
-    // Seed a completed outcome; this test checks server rematch ownership and reset behavior.
-    current.state.phase = 'VICTORY';
-    current.state.bossHp = 0;
-    expect((await req(returning, 'battle:rematch')).ok).toBe(false);
-    expect((await req(hero, 'battle:rematch')).ok).toBe(true);
-    expect(current.state.heroHp).toBe(current.state.spec.heroMaxHp);
-    expect(current.state.bossHp).toBe(current.state.spec.bossMaxHp);
-    expect(current.state.players.hero.ready).toBe(false);
-    expect(current.state.players.boss.ready).toBe(false);
-    expect((await req(hero, 'battle:start')).ok).toBe(false);
-    await ready(hero);
-    await ready(returning);
-    expect((await req(hero, 'battle:start')).ok).toBe(true);
-    await req(hero, 'room:leave');
-  });
-
-  it('bounds result-screen disconnects and clears the deadline when both roles return', async () => {
-    const hero = await client(),
-      boss = await client(),
-      returning = await client();
-    const room = await create(hero);
-    const joined = await req<RoomReply>(boss, 'room:join', { code: room.session.code });
-    if (!joined.ok) throw new Error(joined.error);
-    const state = server.rooms.get(room.session.code)!.state;
-    state.phase = 'DEFEAT';
-    state.heroHp = 0;
-    boss.disconnect();
-    await wait(100);
-    expect(state.phase).toBe('DEFEAT');
-    expect(state.reconnectUntil).toBeGreaterThan(Date.now());
-    expect((await req(returning, 'room:resume', joined.data.session)).ok).toBe(true);
-    expect(state.reconnectUntil).toBeNull();
-    expect(state.phase).toBe('DEFEAT');
-    expect((await req(hero, 'battle:rematch')).ok).toBe(true);
-    await req(hero, 'room:leave');
+    await req(host, 'room:leave');
   });
 });

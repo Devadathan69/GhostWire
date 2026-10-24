@@ -4,6 +4,10 @@ If maintaining this record, briefly document the actual contributions of whichev
 
 ## Event build log
 
+Cooperative verification at **2026-10-25T00:48:06+05:30**: Codex found/fixed overlapping volley damage and end-of-channel revive ordering, added two regression cases, tuned incoming damage, and added automatic camera stop at results. All 68 unit/network tests and TypeScript passed. First browser verification passed five scenarios and exposed timing/idle gaps in three longer scenarios; these remain under correction. The public HTTPS check passed cooperative identity, solo-shield, shared damage, invitations, and model assets. Physical rehearsal and human review remain pending.
+
+Cooperative redesign at **2026-10-25T00:42:36+05:30**: Codex implemented squad rooms, AI boss, teamwork shield/burst, downed/revive rules, team rendering/HUD/results, local-camera Reality Breach, and updated setup/controls/design documentation. The user corrected the intended game mode; the previous versus mode is replaced. TypeScript/build and all 66 unit/network tests passed; cooperative browser/public-link verification is in progress. Human code review and physical device/gesture rehearsal remain pending.
+
 Upgrade publication at **2026-10-25T00:19:16+05:30**: Codex pushed the completed upgrade to the owner-authorized submitted repository, then recorded implementation revision `aaaa3b02540e059a83d337760caacfde5b95fb3c` and final 46-test/10-scenario validation in `SUBMISSION.md`. Credential-pattern, local-link, and staged-whitespace checks passed. This follow-up changes documentation only; human review and physical rehearsal remain pending.
 
 Final regression at **2026-10-25T00:17:33+05:30**: Codex refined shader preloading/recovery, motion running, instruction input reset, above-head and index-up recognition, browser timing, and demo/phone documentation. All 46 unit/network tests and all 10 browser scenarios passed; final strict TypeScript/production build and the public HTTPS/network check passed. Browser evidence uses synthetic cameras. Human code review, physical phone performance, and real-person gesture rehearsal remain pending.

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   heroPosition,
+  heroView,
   MELEE_RANGE,
   type BattleState,
   type PendingAttack,
@@ -26,6 +27,7 @@ export class BattleScene {
   private overlayCamera = new THREE.OrthographicCamera(-640, 640, 360, -360, 0.1, 10);
   private hero: Fighter;
   private boss: Fighter;
+  private teammates = new Map<string, Fighter>();
   private arena: ReturnType<typeof createArena>;
   private shadow: THREE.Mesh;
   private reticle = new THREE.Group();
@@ -142,6 +144,35 @@ export class BattleScene {
     this.hero = createHero(initial.spec);
     this.boss = createBoss(initial.spec);
     this.world.add(this.hero.root, this.boss.root);
+    if (initial.raid) {
+      for (const h of Object.values(initial.raid.heroes)) {
+        const fighter =
+          h.id === initial.viewPlayerId
+            ? this.hero
+            : createHero({ ...initial.spec, primaryColor: h.color });
+        if (h.id !== initial.viewPlayerId) {
+          this.teammates.set(h.id, fighter);
+          this.world.add(fighter.root);
+        }
+        fighter.root.position.set(h.fighter.position.x, 0, h.fighter.position.z);
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d')!;
+        ctx.font = 'bold 26px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#0b1118';
+        ctx.fillRect(0, 0, 512, 64);
+        ctx.fillStyle = h.color;
+        ctx.fillText(`${h.name}${h.id === initial.viewPlayerId ? ' · YOU' : ''}`, 256, 43);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }));
+        tag.position.y = 2.8;
+        tag.scale.set(2.6, 0.325, 1);
+        fighter.root.add(tag);
+      }
+    }
     this.hero.root.position.set(
       initial.fighters.hero.position.x,
       0,
@@ -344,7 +375,10 @@ export class BattleScene {
     for (const e of s.events) {
       if (e.id <= this.lastEvent) continue;
       if (e.action === 'hit') {
-        const victim = e.role === 'hero' ? this.boss : this.hero;
+        const victim =
+          e.role === 'hero'
+            ? this.boss
+            : (e.playerId && this.teammates.get(e.playerId)) || this.hero;
         const location = victim.root.position
           .clone()
           .add(new THREE.Vector3(0, victim.height * victim.root.scale.y * 0.55, 0));
@@ -380,24 +414,51 @@ export class BattleScene {
       }
       if (e.action === 'special') cue('special');
       if (e.action === 'guard') cue('guard');
+      if (e.label === 'AEGIS BROKEN' || e.label === 'UNITY BURST') {
+        this.burst(
+          this.boss.root.position.clone().add(new THREE.Vector3(0, 2, 0)),
+          '#c2f970',
+          now,
+          35,
+        );
+        this.label(
+          this.boss.root.position.clone().add(new THREE.Vector3(0, 4, 0)),
+          e.label,
+          '#c2f970',
+          now,
+        );
+        cue('special');
+      }
       this.lastEvent = e.id;
     }
   }
-  private animateFighter(f: Fighter, role: 'hero' | 'boss', now: number, reality: boolean) {
-    const s = this.state,
+  private animateFighter(
+    f: Fighter,
+    role: 'hero' | 'boss',
+    now: number,
+    reality: boolean,
+    viewState = this.state,
+  ) {
+    const s = viewState,
       hero = role === 'hero',
       seconds = now / 1000,
       motion = s.fighters[role].movement;
     const moving = Math.min(1, Math.hypot(motion.x, motion.z)),
       cycle = seconds * (motion.sprint ? 13 : 8);
-    const pending = s.pending.find((a) => a.role === role),
+    const pending = s.pending.find(
+        (a) => a.role === role && (role === 'boss' || !s.raid || a.playerId === s.viewPlayerId),
+      ),
       p = pending
         ? clamp((now - pending.startedAt) / (pending.resolvesAt - pending.startedAt), 0, 1)
         : 0;
-    const guard = (hero ? s.heroGuardUntil : s.bossGuardUntil) > now,
+    const guard = hero
+        ? s.heroGuardUntil > now
+        : s.raid
+          ? s.raid.vulnerableUntil <= now && !pending
+          : s.bossGuardUntil > now,
       dodge = hero && s.dodgeUntil > now;
-    const dead = hero ? s.phase === 'DEFEAT' : s.phase === 'VICTORY',
-      fall = dead ? clamp((now - s.phaseAt) / 1200, 0, 1) : 0;
+    const dead = hero ? s.heroHp <= 0 || s.phase === 'DEFEAT' : s.phase === 'VICTORY',
+      fall = dead ? 1 : 0;
     const jumping =
       hero && s.jumpUntil > now
         ? Math.sin(clamp((800 - s.jumpUntil + now) / 800, 0, 1) * Math.PI) * 1.1
@@ -449,7 +510,7 @@ export class BattleScene {
         }
       }
     });
-    f.shield.visible = guard;
+    f.shield.visible = guard || Boolean(!hero && s.raid && s.raid.vulnerableUntil <= now);
     f.shield.position.y = f.height * 0.47 + jumping;
     f.shield.rotation.y = seconds * 0.15;
     if (f.shield.material instanceof THREE.ShaderMaterial)
@@ -471,7 +532,10 @@ export class BattleScene {
       points.needsUpdate = true;
       f.cape.geometry.computeVertexNormals();
     }
-    const other = s.fighters[hero ? 'boss' : 'hero'].position,
+    const other =
+        !hero && s.raid?.targetId
+          ? s.raid.heroes[s.raid.targetId].fighter.position
+          : s.fighters[hero ? 'boss' : 'hero'].position,
       own = s.fighters[role].position;
     const facing = reality && hero ? 0.2 : Math.atan2(other.x - own.x, other.z - own.z);
     const difference = Math.atan2(
@@ -479,10 +543,14 @@ export class BattleScene {
       Math.cos(facing - f.root.rotation.y),
     );
     f.root.rotation.y += difference * 0.22;
-    f.root.scale.setScalar(hero && reality ? 0.66 : 1);
+    f.root.scale.setScalar(hero && reality ? 0.66 : !hero && s.raid ? (reality ? 0.8 : 1.15) : 1);
   }
   private createAttack(a: PendingAttack): SpellVisual {
-    const visual = createSpell(this.state.spec, a);
+    const color = a.playerId && this.state.raid?.heroes[a.playerId]?.color;
+    const visual = createSpell(
+      color ? { ...this.state.spec, primaryColor: color } : this.state.spec,
+      a,
+    );
     this.world.add(visual.root);
     return visual;
   }
@@ -505,7 +573,10 @@ export class BattleScene {
         this.attacks.set(a.id, v);
       }
       const p = clamp((now - a.startedAt) / (a.resolvesAt - a.startedAt), 0, 1),
-        caster = a.role === 'hero' ? this.hero : this.boss;
+        caster =
+          a.role === 'hero'
+            ? (a.playerId && this.teammates.get(a.playerId)) || this.hero
+            : this.boss;
       const from = caster.root.position
         .clone()
         .add(new THREE.Vector3(0, (a.role === 'hero' ? 1.45 : 2.6) * caster.root.scale.y, 0));
@@ -534,7 +605,7 @@ export class BattleScene {
         }
       } else {
         to =
-          reality && this.liveCamera
+          reality && this.liveCamera && !s.raid
             ? (screenToWorld(
                 this.camera,
                 s.bossTarget,
@@ -599,7 +670,7 @@ export class BattleScene {
     this.world.fog = live ? null : this.fog;
     this.arena.root.visible = !live;
     this.shadow.visible = live;
-    this.boss.root.visible = !live;
+    this.boss.root.visible = !live || Boolean(s.raid);
     if (this.view === 'overlook' && !reality) this.cameraGoal.set(3.5, 10, 16);
     else this.cameraGoal.set(0, 6.6, 14.8);
     this.camera.position.lerp(this.cameraGoal, this.reduced ? 1 : 1 - Math.exp(-dt * 4));
@@ -617,13 +688,30 @@ export class BattleScene {
         1 - Math.exp(-dt * 22),
       );
     this.boss.root.position.lerp(
-      new THREE.Vector3(s.fighters.boss.position.x, 0, s.fighters.boss.position.z),
+      reality && s.raid
+        ? (screenToWorld(
+            this.camera,
+            { x: 0.5, y: 0.43 },
+            new THREE.Plane(new THREE.Vector3(0, 0, 1), 1),
+          ) ?? new THREE.Vector3())
+        : new THREE.Vector3(s.fighters.boss.position.x, 0, s.fighters.boss.position.z),
       1 - Math.exp(-dt * 18),
     );
     this.shadow.position.y = this.hero.root.position.y - 0.015;
     this.animateFighter(this.hero, 'hero', now, reality);
     this.animateFighter(this.boss, 'boss', now, reality);
-    this.reticle.visible = reality;
+    for (const [id, fighter] of this.teammates) {
+      const h = s.raid?.heroes[id];
+      if (!h) continue;
+      const position = reality
+        ? (screenToWorld(this.camera, h.screen, new THREE.Plane(new THREE.Vector3(0, 0, 1), -3)) ??
+          new THREE.Vector3())
+        : new THREE.Vector3(h.fighter.position.x, 0, h.fighter.position.z);
+      fighter.root.position.lerp(position, reality ? 1 : 1 - Math.exp(-dt * 22));
+      fighter.root.visible = !h.eliminated;
+      this.animateFighter(fighter, 'hero', now, reality, heroView(s, id));
+    }
+    this.reticle.visible = reality && !s.raid;
     this.reticle.position.set((s.bossTarget.x - 0.5) * 1280, (0.5 - s.bossTarget.y) * 720, 0.1);
     this.arena.inner.rotation.z = this.reduced ? 0 : now / 18000;
     this.arena.vortex.uniforms.time.value = this.reduced ? 0 : now / 1000;
@@ -679,6 +767,17 @@ export class BattleScene {
       this.onReady();
     }
     this.renderer.domElement.dataset.heroWorld = `${s.fighters.hero.position.x.toFixed(2)},${s.fighters.hero.position.z.toFixed(2)}`;
+    this.renderer.domElement.dataset.heroes = String(
+      s.raid ? Object.keys(s.raid.heroes).length : 1,
+    );
+    this.renderer.domElement.dataset.bossWorld = `${s.fighters.boss.position.x.toFixed(2)},${s.fighters.boss.position.z.toFixed(2)}`;
+    this.renderer.domElement.dataset.phase = s.phase;
+    this.renderer.domElement.dataset.impactIn = String(
+      Math.min(
+        99999,
+        ...s.pending.filter((a) => a.role === 'boss').map((a) => a.resolvesAt - s.clock),
+      ),
+    );
     this.renderer.domElement.dataset.activeEffect = s.pending
       .map((a) =>
         a.role === 'hero' && a.action === 'special' ? s.spec.heroPower : (a.attackId ?? a.action),

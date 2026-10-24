@@ -475,7 +475,8 @@ button:not(:disabled):active {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
 }
-.launch-tabs button.selected {
+.launch-tabs button.selected,
+.launch-tabs button.active {
   color: var(--lime);
   border-bottom-color: var(--lime);
 }
@@ -2812,5 +2813,204 @@ kbd {
     right: 6px;
     bottom: 14px;
     font-size: 38px;
+  }
+}
+/* Cooperative squad presentation. */
+.raid-input,
+.launch-panel > textarea {
+  width: 100%;
+  background: #0b1218;
+  border: 1px solid #344348;
+  color: var(--text, #eaf1ec);
+  padding: 14px;
+  margin: 9px 0 22px;
+  border-radius: 5px;
+  font: inherit;
+}
+.launch-panel > textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+.world-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin: 12px 0 22px;
+}
+.world-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  background: #101b20;
+  border: 1px solid #344348;
+  border-radius: 5px;
+  color: #d9e5dd;
+  padding: 14px 10px;
+  text-align: left;
+}
+.world-option small {
+  font: 9px monospace;
+  letter-spacing: 0.06em;
+  color: #9eaaa8;
+}
+.world-option.selected {
+  border-color: #c2f970;
+  background: #202f24;
+}
+.raid-boss-hud {
+  position: relative;
+  padding: 23px;
+  margin-bottom: 18px;
+  border: 1px solid #344348;
+  border-radius: 5px;
+  background: linear-gradient(110deg, #19242b, #10171d);
+}
+.raid-boss-hud .health-title > span {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+.raid-boss-hud .health-title small {
+  color: #9ea9ac;
+  font: 10px monospace;
+}
+.raid-boss-hud .health-track {
+  margin-top: 14px;
+}
+.raid-boss-hud .health-track > div {
+  background: #ff865e;
+  height: 100%;
+  transition: width 0.18s;
+}
+.team-window {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 16px;
+  color: #edbca2;
+  font-size: 12px;
+}
+.team-window strong {
+  font: 11px monospace;
+  letter-spacing: 0.05em;
+}
+.team-window.is-open {
+  color: #c2f970;
+}
+.squad-panel {
+  border: 1px solid #344348;
+  background: #111b21;
+  border-radius: 5px;
+  padding: 18px;
+}
+.squad-panel h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.squad-member {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #28373b;
+}
+.squad-member:last-child {
+  border: 0;
+}
+.squad-info {
+  min-width: 0;
+  flex: 1;
+}
+.squad-info strong {
+  font-size: 12px;
+  display: block;
+  overflow-wrap: anywhere;
+}
+.squad-info small {
+  color: #a7b4b7;
+  font-size: 11px;
+  display: block;
+  margin-top: 5px;
+}
+.squad-color {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 12px #a7f3e022;
+}
+.squad-hp {
+  height: 3px;
+  background: #303c41;
+  margin-top: 10px;
+}
+.squad-hp span {
+  height: 100%;
+  display: block;
+  transition: width 0.2s;
+}
+.squad-member.is-down .squad-info small {
+  color: #ff987d;
+}
+.coop-lobby-note {
+  color: #b4beba;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.revive-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: #c2f970;
+  padding-top: 16px;
+}
+.revive-progress progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #c2f970;
+}
+.unity-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 12px 20px;
+  background: #c2f970;
+  color: #111b21;
+  font: bold 18px monospace;
+  border-radius: 4px;
+  pointer-events: none;
+}
+@media (max-width: 600px) {
+  .raid-boss-hud {
+    padding: 16px;
+  }
+  .raid-boss-hud .health-title {
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .raid-boss-hud .health-title > span {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .raid-boss-hud .health-title strong {
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .world-options {
+    grid-template-columns: 1fr;
+  }
+  .world-option {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .team-window {
+    line-height: 1.6;
   }
 }

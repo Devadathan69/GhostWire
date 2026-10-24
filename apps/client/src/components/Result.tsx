@@ -13,7 +13,8 @@ export function Result({
   onLeave: () => void;
 }) {
   const heroWin = state.phase === 'VICTORY',
-    won = role === 'hero' ? heroWin : !heroWin;
+    won = state.raid ? heroWin : role === 'hero' ? heroWin : !heroWin;
+  const canRematch = !state.raid || state.viewPlayerId === state.raid.hostId;
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     panel.current?.focus();
@@ -21,8 +22,8 @@ export function Result({
   const title =
     role === 'hero'
       ? heroWin
-        ? 'Reality reclaimed.'
-        : 'The rift remains.'
+        ? 'The squad prevailed.'
+        : 'The squad has fallen.'
       : heroWin
         ? 'Your reign is over.'
         : 'The rift is yours.';
@@ -54,7 +55,13 @@ export function Result({
     g.fillText(heroWin ? state.spec.victoryLine : 'Another raid. Another chance.', 70, 460);
     g.fillStyle = '#c2f970';
     g.font = '18px monospace';
-    g.fillText(state.practice ? 'SOLO TRAINING' : 'TWO-PLAYER RAID', 70, 550);
+    g.fillText(
+      state.practice
+        ? 'CO-OP TRAINING · AI ALLY'
+        : `${Object.keys(state.raid?.heroes ?? {}).length} HERO COOPERATIVE RAID`,
+      70,
+      550,
+    );
     const a = document.createElement('a');
     a.download = 'ghostwire-raid-recap.png';
     a.href = c.toDataURL('image/png');
@@ -74,17 +81,19 @@ export function Result({
         <div className="result-icon">{won ? <Trophy size={30} /> : <Skull size={30} />}</div>
         <span className="eyebrow">
           {won ? 'RAID COMPLETE' : 'RAID ENDED'} ·{' '}
-          {state.practice ? 'TRAINING' : role.toUpperCase()}
+          {state.practice ? 'TRAINING WITH AI ALLY' : 'SQUAD OUTCOME'}
         </span>
         <h2>{title}</h2>
         <p>
-          {won
-            ? role === 'hero'
-              ? state.spec.victoryLine
-              : 'You defended your reality. The hero has fallen.'
-            : role === 'hero'
-              ? 'The hero fell. Step through the rift and try again.'
-              : 'The hero broke the breach. Challenge them again.'}
+          {state.raid
+            ? state.raid.endReason
+            : won
+              ? role === 'hero'
+                ? state.spec.victoryLine
+                : 'You defended your reality. The hero has fallen.'
+              : role === 'hero'
+                ? 'The hero fell. Step through the rift and try again.'
+                : 'The hero broke the breach. Challenge them again.'}
         </p>
         <div className="result-stats">
           <div>
@@ -93,25 +102,25 @@ export function Result({
           </div>
           <div>
             <strong>{state.stats.damage}</strong>
-            <span>HERO DAMAGE</span>
+            <span>TEAM DAMAGE</span>
           </div>
           <div>
-            <strong>{state.stats.dodged}</strong>
-            <span>EVADES</span>
+            <strong>{state.raid?.bursts ?? state.stats.dodged}</strong>
+            <span>{state.raid ? 'UNITY BURSTS' : 'EVADES'}</span>
           </div>
           <div>
-            <strong>{state.stats.blocked}</strong>
-            <span>BLOCKS</span>
+            <strong>{state.raid?.revives ?? state.stats.blocked}</strong>
+            <span>{state.raid ? 'REVIVES' : 'BLOCKS'}</span>
           </div>
         </div>
         <div className="result-actions">
-          {role === 'hero' ? (
+          {canRematch ? (
             <button className="button primary" onClick={onRematch}>
               <RotateCcw size={16} />
               Raid again
             </button>
           ) : (
-            <span className="muted">Waiting for the hero to request a rematch.</span>
+            <span className="muted">Waiting for the squad leader to request a rematch.</span>
           )}
           <button className="button secondary" onClick={download}>
             <Download size={16} />

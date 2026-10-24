@@ -7,39 +7,40 @@ import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
 import {
   IntentSchema,
-  TargetSchema,
   MovementSchema,
-  isCombat,
-  heroPosition,
+  MAX_RAID_PLAYERS,
   type Ack,
-  type BattleState,
-  type Role,
+  type RaidState,
   type Session,
 } from '@ghostwire/shared';
-import { applyIntent, applyMovement, createState, startBattle, tickBattle } from './combatEngine';
+import {
+  addHero,
+  createRaid,
+  heroIntent,
+  moveHero,
+  reviveHero,
+  startRaid,
+  tickRaid,
+} from './raidEngine';
 import { directBattle, type Encounter } from './battleDirector';
 
 type Room = {
-  state: BattleState;
-  tokens: Record<Role, string>;
-  sockets: Partial<Record<Role, string>>;
-  sequences: Record<Role, number>;
+  state: RaidState;
+  tokens: Record<string, string>;
+  sockets: Record<string, string>;
+  sequences: Record<string, number>;
   touched: number;
-  nextBotAt: number;
-  botTurn: number;
-  bossClaimed: boolean;
 };
 type Reply = (data: Ack<unknown>) => void;
 const codeSchema = z.string().regex(/^[A-HJ-NP-Z2-9]{6}$/);
-const resumeSchema = z
-  .object({
-    code: codeSchema,
-    role: z.enum(['hero', 'boss']),
-    token: z.string().regex(/^[a-f0-9]{48}$/),
-  })
-  .strict();
-const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const nameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(20)
+  .regex(/^[\p{L}\p{N} _.-]+$/u, 'Use letters, numbers, spaces, or ._- in your name.');
 const token = () => randomBytes(24).toString('hex');
+const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function makeServer() {
   const app = express();
@@ -69,7 +70,7 @@ export function makeServer() {
       try {
         same ||= new URL(origin!).host === req.headers.host || allowed.has(origin!);
       } catch {
-        /* invalid origin */
+        /* reject malformed origins */
       }
       cb(null, same);
     },
@@ -87,117 +88,160 @@ export function makeServer() {
     return ++r.count > max;
   }
   app.get('/api/health', (_req, res) =>
-    res.json({ ok: true, aiConfigured: Boolean(process.env.OPENAI_API_KEY) }),
+    res.json({
+      ok: true,
+      mode: 'cooperative',
+      maxPlayers: 4,
+      aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    }),
   );
   app.get('/api/config', (_req, res) => res.json({ publicUrl: process.env.PUBLIC_URL || null }));
   app.post('/api/encounters', async (req, res) => {
     if (limited(`ai:${req.ip}`, 8) || encounters.size >= 500) {
-      res.status(429).json({ error: 'The director is busy. Wait a minute and try again.' });
+      res.status(429).json({ error: 'The director is busy. Wait a minute and retry.' });
       return;
     }
-    const parsed = z
+    const p = z
       .object({
         prompt: z.string().trim().min(3).max(500),
         preset: z.enum(['ember', 'shadow', 'storm']).optional(),
       })
       .strict()
       .safeParse(req.body);
-    if (!parsed.success) {
+    if (!p.success) {
       res.status(400).json({ error: 'Describe a battle in 3–500 characters.' });
       return;
     }
-    const encounter = await directBattle(parsed.data.prompt, parsed.data.preset);
-    const id = token();
+    const encounter = await directBattle(p.data.prompt, p.data.preset),
+      id = token();
     encounters.set(id, { ...encounter, expires: Date.now() + 600000 });
     res.json({ id, ...encounter });
   });
-  function broadcast(room: Room) {
-    io.to(room.state.code).emit('battle:snapshot', room.state);
-  }
+  const broadcast = (r: Room) => io.to(r.state.code).emit('battle:snapshot', r.state);
   function closeRoom(code: string, reason: string) {
-    const room = rooms.get(code);
-    if (!room) return;
+    const r = rooms.get(code);
+    if (!r) return;
     io.to(code).emit('room:closed', { reason });
-    for (const id of Object.values(room.sockets)) {
-      const s = id && io.sockets.sockets.get(id);
-      if (s) {
-        s.leave(code);
-        delete s.data.session;
-      }
+    for (const id of Object.values(r.sockets)) {
+      const socket = io.sockets.sockets.get(id);
+      socket?.leave(code);
+      if (socket) delete socket.data.session;
     }
     rooms.delete(code);
   }
-  function joinUrl(socket: Socket, code: string) {
+  function resumeIfConnected(r: Room) {
+    const s = r.state;
+    if (
+      Object.values(s.raid.heroes)
+        .filter((h) => r.tokens[h.id] || h.bot)
+        .every((h) => h.connected)
+    ) {
+      if (s.phase === 'DISCONNECTED') {
+        s.phase = s.resumePhase ?? 'LOBBY';
+        s.resumePhase = null;
+      }
+      s.reconnectUntil = null;
+    }
+  }
+  function bind(socket: Socket, r: Room, id: string, reply: Reply) {
+    const oldId = r.sockets[id];
+    if (oldId && oldId !== socket.id) {
+      const old = io.sockets.sockets.get(oldId);
+      old?.leave(r.state.code);
+      if (old) {
+        delete old.data.session;
+        old.emit('room:closed', { reason: 'This hero was resumed in another tab.' });
+      }
+    }
+    r.sockets[id] = socket.id;
+    r.sequences[id] = -1;
+    r.state.raid.heroes[id].connected = true;
+    const session: Session = {
+      code: r.state.code,
+      role: 'hero',
+      playerId: id,
+      token: r.tokens[id],
+    };
+    socket.data.session = session;
+    socket.join(session.code);
+    r.touched = Date.now();
+    resumeIfConnected(r);
     const base =
       process.env.PUBLIC_URL ||
       socket.handshake.headers.origin ||
       `http://localhost:${process.env.PORT || 3001}`;
-    return `${base}/?join=${code}`;
-  }
-  function bind(socket: Socket, room: Room, role: Role, reply: Reply) {
-    const previous = room.sockets[role];
-    if (previous && previous !== socket.id) {
-      const old = io.sockets.sockets.get(previous);
-      if (old) {
-        old.leave(room.state.code);
-        delete old.data.session;
-        old.emit('room:closed', { reason: 'This role was resumed in another tab.' });
-      }
-    }
-    room.sockets[role] = socket.id;
-    room.sequences[role] = -1;
-    room.state.players[role].connected = true;
-    if (role === 'boss') room.bossClaimed = true;
-    const session: Session = { code: room.state.code, role, token: room.tokens[role] };
-    socket.data.session = session;
-    socket.join(session.code);
-    room.touched = Date.now();
-    const waitingForFirstBoss = !room.bossClaimed && room.state.resumePhase === 'LOBBY';
-    if (
-      room.state.players.hero.connected &&
-      (room.state.players.boss.connected || waitingForFirstBoss)
-    ) {
-      if (room.state.phase === 'DISCONNECTED') {
-        room.state.phase = room.state.resumePhase ?? 'ARENA';
-        room.state.resumePhase = null;
-      }
-      room.state.reconnectUntil = null;
-    }
     reply({
       ok: true,
-      data: { session, state: room.state, joinUrl: joinUrl(socket, session.code) },
+      data: { session, state: r.state, joinUrl: `${base}/?join=${session.code}` },
     });
-    broadcast(room);
-    socket.to(session.code).emit('peer:joined');
+    broadcast(r);
+  }
+  function departed(r: Room, id: string) {
+    delete r.tokens[id];
+    delete r.sequences[id];
+    delete r.sockets[id];
+    if (
+      ['LOBBY', 'CALIBRATING'].includes(r.state.phase) ||
+      r.state.resumePhase === 'LOBBY' ||
+      r.state.resumePhase === 'CALIBRATING'
+    )
+      delete r.state.raid.heroes[id];
+    else {
+      const h = r.state.raid.heroes[id];
+      h.connected = false;
+      h.ready = false;
+      h.eliminated = true;
+      h.hp = 0;
+      h.downedUntil = null;
+      h.reviving = null;
+    }
+    const humans = Object.values(r.state.raid.heroes).filter((h) => !h.bot && r.tokens[h.id]);
+    if (!humans.length) {
+      closeRoom(r.state.code, 'The squad left the raid.');
+      return;
+    }
+    if (r.state.raid.hostId === id) r.state.raid.hostId = humans[0].id;
+    resumeIfConnected(r);
+    if (
+      !['LOBBY', 'CALIBRATING', 'VICTORY', 'DEFEAT'].includes(r.state.phase) &&
+      Object.values(r.state.raid.heroes).filter((h) => h.connected).length < 2
+    ) {
+      r.state.phase = 'DEFEAT';
+      r.state.phaseAt = r.state.clock;
+      r.state.resumePhase = null;
+      r.state.pending = [];
+      r.state.raid.endReason = 'The squad lost its teammates. A raid needs at least two heroes.';
+      r.state.reconnectUntil = null;
+    }
+    broadcast(r);
   }
   io.on('connection', (socket) => {
-    const fail = (reply: Reply, error: string) => reply({ ok: false, error });
-    function member(): { room: Room; role: Role } | null {
-      const sess = socket.data.session as Session | undefined;
-      if (!sess) return null;
-      const room = rooms.get(sess.code);
-      if (!room || room.sockets[sess.role] !== socket.id) return null;
-      return { room, role: sess.role };
+    function member() {
+      const sess = socket.data.session as Session | undefined,
+        r = sess && rooms.get(sess.code),
+        id = sess?.playerId;
+      return r && id && r.sockets[id] === socket.id ? { room: r, id } : null;
     }
     function on(
       name: string,
-      handler: (payload: unknown, reply: Reply) => void,
+      handler: (raw: unknown, reply: Reply) => void,
       max = 20,
       window = 1000,
     ) {
-      socket.on(name, (payload, ack) => {
+      socket.on(name, (raw, ack) => {
         const reply: Reply = typeof ack === 'function' ? ack : () => {};
         if (limited(`${socket.id}:${name}`, max, window)) {
-          fail(reply, 'Too many requests. Slow down a little.');
+          reply({ ok: false, error: 'Too many requests. Slow down a little.' });
           return;
         }
         try {
-          handler(payload, reply);
+          handler(raw, reply);
         } catch {
-          fail(reply, 'That request could not be processed.');
+          reply({ ok: false, error: 'That request could not be processed.' });
         }
       });
     }
+    const fail = (r: Reply, error: string) => r({ ok: false, error });
     on(
       'room:create',
       (raw, reply) => {
@@ -210,34 +254,36 @@ export function makeServer() {
           return;
         }
         const p = z
-          .object({ encounterId: z.string().length(48), practice: z.boolean() })
+          .object({
+            encounterId: z.string().length(48),
+            practice: z.boolean(),
+            name: nameSchema.optional(),
+          })
           .strict()
           .safeParse(raw);
         const e = p.success && encounters.get(p.data.encounterId);
         if (!p.success || !e || e.expires < Date.now()) {
-          fail(reply, 'Encounter expired. Create a new battle.');
+          fail(reply, 'Encounter expired or player name invalid. Create a new battle.');
           return;
         }
         let code: string;
         do {
           code = Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join('');
         } while (rooms.has(code));
-        const state = createState(code, e.spec, p.data.practice);
+        const id = randomBytes(8).toString('hex'),
+          state = createRaid(code, e.spec, id, p.data.name ?? 'Hero 1', p.data.practice);
         state.source = e.source;
         state.sourceNote = e.sourceNote;
-        const room: Room = {
+        const r: Room = {
           state,
-          tokens: { hero: token(), boss: token() },
+          tokens: { [id]: token() },
           sockets: {},
-          sequences: { hero: -1, boss: -1 },
+          sequences: {},
           touched: Date.now(),
-          nextBotAt: 0,
-          botTurn: 0,
-          bossClaimed: p.data.practice,
         };
-        rooms.set(code, room);
+        rooms.set(code, r);
         encounters.delete(p.data.encounterId);
-        bind(socket, room, 'hero', reply);
+        bind(socket, r, id, reply);
       },
       3,
       10000,
@@ -253,80 +299,93 @@ export function makeServer() {
           fail(reply, 'Too many room attempts. Try again in a minute.');
           return;
         }
-        const p = z.object({ code: codeSchema }).strict().safeParse(raw);
-        const room = p.success && rooms.get(p.data.code);
-        if (!room || !['LOBBY', 'CALIBRATING'].includes(room.state.phase)) {
+        const p = z
+            .object({ code: codeSchema, name: nameSchema.optional() })
+            .strict()
+            .safeParse(raw),
+          r = p.success && rooms.get(p.data.code);
+        if (!r || !p.success || !['LOBBY', 'CALIBRATING'].includes(r.state.phase)) {
           fail(reply, 'Room not found or the raid has already begun.');
           return;
         }
-        if (room.state.practice || room.bossClaimed) {
-          fail(reply, 'The boss slot is already taken.');
+        if (r.state.practice || Object.keys(r.state.raid.heroes).length >= MAX_RAID_PLAYERS) {
+          fail(reply, 'This squad is full. A raid supports 2–4 heroes.');
           return;
         }
-        bind(socket, room, 'boss', reply);
-        room.state.phase = 'CALIBRATING';
-        broadcast(room);
+        const id = randomBytes(8).toString('hex');
+        r.tokens[id] = token();
+        addHero(r.state, id, p.data.name ?? `Hero ${Object.keys(r.state.raid.heroes).length + 1}`);
+        bind(socket, r, id, reply);
       },
       4,
-      1000,
     );
     on(
       'room:resume',
       (raw, reply) => {
-        const p = resumeSchema.safeParse(raw);
-        const room = p.success && rooms.get(p.data.code);
+        const p = z
+            .object({
+              code: codeSchema,
+              role: z.literal('hero'),
+              playerId: z.string().regex(/^[a-f0-9]{16}$/),
+              token: z.string().regex(/^[a-f0-9]{48}$/),
+            })
+            .strict()
+            .safeParse(raw),
+          r = p.success && rooms.get(p.data.code);
         if (
           !p.success ||
-          !room ||
-          room.tokens[p.data.role] !== p.data.token ||
-          (room.state.reconnectUntil && room.state.reconnectUntil <= Date.now())
+          !r ||
+          r.tokens[p.data.playerId] !== p.data.token ||
+          (r.state.reconnectUntil && r.state.reconnectUntil <= Date.now())
         ) {
           fail(reply, 'This session expired. Create or join a new raid.');
           return;
         }
-        const current = member();
-        if (current && current.room !== room) {
-          fail(reply, 'Leave your current room first.');
+        const m = member();
+        if (m && (m.room !== r || m.id !== p.data.playerId)) {
+          fail(reply, 'Leave your current hero first.');
           return;
         }
-        bind(socket, room, p.data.role, reply);
+        bind(socket, r, p.data.playerId, reply);
       },
       5,
-      1000,
     );
     on('room:ready', (raw, reply) => {
-      const m = member();
-      const p = z
-        .object({
-          ready: z.boolean(),
-          camera: z.boolean(),
-          controlMode: z.enum(['manual', 'motion']),
-        })
-        .strict()
-        .safeParse(raw);
+      const m = member(),
+        p = z
+          .object({
+            ready: z.boolean(),
+            camera: z.boolean(),
+            controlMode: z.enum(['manual', 'motion']),
+          })
+          .strict()
+          .safeParse(raw);
       if (!m || !p.success) {
         fail(reply, 'Invalid player state.');
         return;
       }
-      Object.assign(m.room.state.players[m.role], p.data);
+      const h = m.room.state.raid.heroes[m.id];
+      h.camera = p.data.camera;
+      h.controlMode = p.data.controlMode;
+      if (['LOBBY', 'CALIBRATING'].includes(m.room.state.phase)) h.ready = p.data.ready;
       broadcast(m.room);
       reply({ ok: true, data: null });
     });
     on('battle:start', (raw, reply) => {
-      const m = member();
-      if (!m || m.role !== 'hero') {
-        fail(reply, 'Only the hero can begin the raid.');
+      const m = member(),
+        p = z
+          .object({ waitForRenderer: z.boolean().optional() })
+          .strict()
+          .safeParse(raw ?? {});
+      if (!m || m.id !== m.room.state.raid.hostId) {
+        fail(reply, 'Only the squad leader can begin the raid.');
         return;
       }
-      const options = z
-        .object({ waitForRenderer: z.boolean().optional() })
-        .strict()
-        .safeParse(raw ?? {});
-      if (!options.success) {
+      if (!p.success) {
         fail(reply, 'Invalid raid setup.');
         return;
       }
-      const error = startBattle(m.room.state, options.data.waitForRenderer ?? false);
+      const error = startRaid(m.room.state, p.data.waitForRenderer ?? false);
       if (error) fail(reply, error);
       else {
         broadcast(m.room);
@@ -336,53 +395,65 @@ export function makeServer() {
     on('battle:render-ready', (_raw, reply) => {
       const m = member();
       if (!m) {
-        fail(reply, 'Join a room first.');
+        fail(reply, 'Join a squad first.');
         return;
       }
       const s = m.room.state;
-      s.renderReady[m.role] = true;
-      if (s.renderPending && s.renderReady.hero && s.renderReady.boss) {
+      s.raid.heroes[m.id].renderReady = true;
+      if (s.renderPending && Object.values(s.raid.heroes).every((h) => h.renderReady)) {
         s.renderPending = false;
         s.renderDeadline = null;
         s.phaseAt = s.clock;
-        broadcast(m.room);
       }
+      broadcast(m.room);
       reply({ ok: true, data: null });
     });
     on('battle:rematch', (_raw, reply) => {
       const m = member();
-      if (!m || m.role !== 'hero' || !['VICTORY', 'DEFEAT'].includes(m.room.state.phase)) {
-        fail(reply, 'Finish the raid before requesting a rematch.');
+      if (
+        !m ||
+        m.id !== m.room.state.raid.hostId ||
+        !['VICTORY', 'DEFEAT'].includes(m.room.state.phase)
+      ) {
+        fail(reply, 'The squad leader can request a rematch after the raid.');
         return;
       }
-      const old = m.room.state;
-      const next = createState(old.code, old.spec, old.practice);
-      next.players = old.players;
-      next.players.hero.ready = false;
-      next.players.boss.ready = old.practice;
+      const old = m.room.state,
+        host = old.raid.heroes[m.id],
+        next = createRaid(old.code, old.spec, m.id, host.name, false);
+      next.practice = old.practice;
       next.source = old.source;
       next.sourceNote = old.sourceNote;
+      for (const h of Object.values(old.raid.heroes)) {
+        if (h.id !== m.id && (h.bot || m.room.tokens[h.id])) addHero(next, h.id, h.name, h.bot);
+        const n = next.raid.heroes[h.id];
+        if (n) {
+          n.connected = h.connected;
+          n.camera = h.camera;
+          n.controlMode = h.controlMode;
+          n.color = h.color;
+        }
+      }
       m.room.state = next;
-      m.room.nextBotAt = 0;
-      m.room.botTurn = 0;
+      for (const id of Object.keys(m.room.sequences)) m.room.sequences[id] = -1;
       broadcast(m.room);
       reply({ ok: true, data: null });
     });
     on(
       'gesture:intent',
       (raw, reply) => {
-        const m = member();
-        const p = IntentSchema.safeParse(raw);
+        const m = member(),
+          p = IntentSchema.safeParse(raw);
         if (!m || !p.success) {
-          fail(reply, 'Invalid move.');
+          fail(reply, 'Invalid hero action.');
           return;
         }
-        if (p.data.sequence <= m.room.sequences[m.role]) {
+        if (p.data.sequence <= m.room.sequences[m.id]) {
           fail(reply, 'Duplicate move.');
           return;
         }
-        m.room.sequences[m.role] = p.data.sequence;
-        const error = applyIntent(m.room.state, m.role, p.data.action, p.data.target);
+        m.room.sequences[m.id] = p.data.sequence;
+        const error = heroIntent(m.room.state, m.id, p.data.action);
         m.room.touched = Date.now();
         if (error) fail(reply, error);
         else {
@@ -396,12 +467,12 @@ export function makeServer() {
       'fighter:move',
       (raw, reply) => {
         const m = member(),
-          parsed = MovementSchema.safeParse(raw);
-        if (!m || !parsed.success) {
+          p = MovementSchema.safeParse(raw);
+        if (!m || !p.success) {
           fail(reply, 'Invalid movement.');
           return;
         }
-        const error = applyMovement(m.room.state, m.role, parsed.data);
+        const error = moveHero(m.room.state, m.id, p.data);
         if (error) fail(reply, error);
         else {
           m.room.touched = Date.now();
@@ -411,85 +482,47 @@ export function makeServer() {
       20,
     );
     on(
-      'boss:target',
+      'raid:revive',
       (raw, reply) => {
-        const m = member();
-        const p = TargetSchema.safeParse(raw);
-        if (!m || m.role !== 'boss' || !p.success) {
-          fail(reply, 'Invalid boss target.');
+        const m = member(),
+          p = z
+            .object({ targetId: z.string().max(32) })
+            .strict()
+            .safeParse(raw);
+        if (!m || !p.success) {
+          fail(reply, 'Invalid teammate.');
           return;
         }
-        m.room.state.bossTarget = p.data;
-        reply({ ok: true, data: null });
+        const error = reviveHero(m.room.state, m.id, p.data.targetId);
+        if (error) fail(reply, error);
+        else {
+          broadcast(m.room);
+          reply({ ok: true, data: null });
+        }
       },
-      20,
+      5,
     );
-    on(
-      'webrtc:signal',
-      (raw, reply) => {
-        const m = member();
-        const p = z
-          .object({
-            type: z.enum(['offer', 'answer', 'ice', 'request', 'stop']),
-            sdp: z.string().max(24000).optional(),
-            generation: z.string().max(64).optional(),
-            candidate: z
-              .object({
-                candidate: z.string().max(2048).optional(),
-                sdpMid: z.string().max(32).nullable().optional(),
-                sdpMLineIndex: z.number().int().min(0).max(10).nullable().optional(),
-                usernameFragment: z.string().max(256).nullable().optional(),
-              })
-              .strict()
-              .optional(),
-          })
-          .strict()
-          .safeParse(raw);
-        if (!m || !p.success) return;
-        const type = p.data.type;
-        if (
-          ((type === 'offer' || type === 'stop') && m.role !== 'boss') ||
-          ((type === 'answer' || type === 'request') && m.role !== 'hero')
-        )
-          return;
-        const other = m.room.sockets[m.role === 'boss' ? 'hero' : 'boss'];
-        if (other) io.to(other).emit('webrtc:signal', p.data);
-        reply({ ok: true, data: null });
-      },
-      80,
-    );
-    on('webrtc:config', (_raw, reply) => {
-      if (!member()) {
-        fail(reply, 'Join a room first.');
-        return;
-      }
-      const iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
-      if (process.env.TURN_URL)
-        iceServers.push({
-          urls: process.env.TURN_URL,
-          username: process.env.TURN_USERNAME,
-          credential: process.env.TURN_CREDENTIAL,
-        });
-      reply({ ok: true, data: { iceServers } });
-    });
     on('room:leave', (_raw, reply) => {
       const m = member();
-      if (m)
-        closeRoom(
-          m.room.state.code,
-          `${m.role === 'hero' ? 'The hero' : 'The boss'} left the raid.`,
-        );
+      if (m) {
+        socket.leave(m.room.state.code);
+        delete socket.data.session;
+        departed(m.room, m.id);
+      }
       reply({ ok: true, data: null });
     });
     socket.on('disconnect', () => {
       const m = member();
       if (!m) return;
-      const s = m.room.state;
-      delete m.room.sockets[m.role];
-      s.players[m.role].connected = false;
-      s.players[m.role].camera = false;
-      for (const role of ['hero', 'boss'] as const)
-        s.fighters[role].movement = { x: 0, z: 0, sprint: false };
+      const s = m.room.state,
+        h = s.raid.heroes[m.id];
+      delete m.room.sockets[m.id];
+      h.connected = false;
+      h.camera = false;
+      for (const hero of Object.values(s.raid.heroes)) {
+        hero.fighter.movement = { x: 0, z: 0, sprint: false };
+        hero.reviving = null;
+      }
       s.reconnectUntil ??= Date.now() + 30000;
       if (!['VICTORY', 'DEFEAT', 'DISCONNECTED'].includes(s.phase)) {
         s.resumePhase = s.phase;
@@ -500,47 +533,34 @@ export function makeServer() {
   });
   let last = Date.now();
   const timer = setInterval(() => {
-    const now = Date.now();
-    const dt = now - last;
+    const now = Date.now(),
+      dt = now - last;
     last = now;
-    for (const [code, room] of rooms) {
-      const s = room.state;
+    for (const [code, r] of rooms) {
+      const s = r.state;
       if (s.reconnectUntil && now > s.reconnectUntil) {
-        closeRoom(code, 'Reconnect window expired. Start a fresh raid.');
-        continue;
+        for (const h of Object.values(s.raid.heroes).filter((h) => !h.connected && !h.bot))
+          departed(r, h.id);
+        if (!rooms.has(code)) continue;
+        s.reconnectUntil = null;
+        if (s.phase === 'DISCONNECTED') {
+          s.phase = s.resumePhase ?? 'LOBBY';
+          s.resumePhase = null;
+        }
       }
       if (s.renderPending && s.renderDeadline && now > s.renderDeadline) {
         closeRoom(
           code,
-          'The 3D views did not finish loading. Reopen the raid in a WebGL 2 browser.',
+          'A teammate’s 3D view did not finish loading. Reopen in a WebGL 2 browser.',
         );
         continue;
       }
-      if (now - room.touched > 30 * 60000) {
-        closeRoom(code, 'This room expired after 30 minutes of inactivity.');
+      if (now - r.touched > 30 * 60000) {
+        closeRoom(code, 'The squad expired after 30 minutes of inactivity.');
         continue;
       }
-      tickBattle(s, dt);
-      if (s.practice && s.phase === 'ARENA') {
-        const h = s.fighters.hero.position,
-          b = s.fighters.boss.position,
-          distance = Math.hypot(h.x - b.x, h.z - b.z);
-        applyMovement(
-          s,
-          'boss',
-          distance > 3.5
-            ? { x: (h.x - b.x) / distance, z: (h.z - b.z) / distance, sprint: false }
-            : { x: 0, z: 0, sprint: false },
-        );
-      }
-      if (s.practice && isCombat(s.phase) && s.clock >= room.nextBotAt) {
-        room.botTurn++;
-        const action =
-          room.botTurn % 5 === 0 ? 'guard' : room.botTurn % 3 === 0 ? 'power' : 'swipe';
-        applyIntent(s, 'boss', action, heroPosition(s));
-        room.nextBotAt = s.clock + (action === 'guard' ? 1800 : 3200);
-      }
-      broadcast(room);
+      tickRaid(r.state, dt);
+      broadcast(r);
     }
     for (const [key, e] of encounters) if (e.expires < now) encounters.delete(key);
     for (const [key, r] of rates) if (r.until < now) rates.delete(key);

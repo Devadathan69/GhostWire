@@ -166,6 +166,7 @@ export type HitEvent = {
   damage: number;
   label: string;
   move?: Action;
+  playerId?: string;
 };
 export type PendingAttack = {
   id: number;
@@ -178,6 +179,8 @@ export type PendingAttack = {
   target: Target;
   radius: number;
   worldTarget?: WorldPosition;
+  playerId?: string;
+  volley?: number;
 };
 export type BattleState = {
   code: string;
@@ -211,8 +214,67 @@ export type BattleState = {
   renderPending: boolean;
   renderReady: Record<Role, boolean>;
   renderDeadline: number | null;
+  raid?: RaidData;
+  viewPlayerId?: string;
 };
-export type Session = { code: string; role: Role; token: string };
+export type Session = { code: string; role: Role; token: string; playerId?: string };
+export const MAX_RAID_PLAYERS = 4;
+export const RAID_COLORS = ['#a7f3e0', '#c9b6ff', '#ffb55e', '#5acfff'];
+export type RaidHero = Player & {
+  id: string;
+  name: string;
+  color: string;
+  bot: boolean;
+  hp: number;
+  fighter: FighterState;
+  screen: Target;
+  guardUntil: number;
+  dodgeUntil: number;
+  jumpUntil: number;
+  immuneUntil: number;
+  cooldowns: Partial<Record<Action, number>>;
+  downedUntil: number | null;
+  eliminated: boolean;
+  renderReady: boolean;
+  damage: number;
+  revives: number;
+  threat: number;
+  reviving: { targetId: string; startedAt: number; origin: WorldPosition; screen: Target } | null;
+};
+export type RaidData = {
+  heroes: Record<string, RaidHero>;
+  hostId: string;
+  maxBossHp: number;
+  vulnerableUntil: number;
+  recentHits: Record<string, number>;
+  lastSpecial: { playerId: string; at: number } | null;
+  bursts: number;
+  revives: number;
+  nextAttackAt: number;
+  aiTurn: number;
+  targetId: string | null;
+  limit: number;
+  endReason: string;
+};
+export type RaidState = BattleState & { raid: RaidData };
+/** Project the shared raid onto this hero's existing input and rendering contract. */
+export function heroView(s: BattleState, playerId?: string): BattleState {
+  const hero = s.raid?.heroes[playerId ?? ''];
+  if (!hero) return s;
+  return {
+    ...s,
+    viewPlayerId: hero.id,
+    spec: { ...s.spec, bossMaxHp: s.raid!.maxBossHp },
+    heroHp: hero.hp,
+    heroScreen: hero.screen,
+    heroGuardUntil: hero.guardUntil,
+    dodgeUntil: hero.dodgeUntil,
+    jumpUntil: hero.jumpUntil,
+    fighters: { ...s.fighters, hero: hero.fighter },
+    cooldowns: { ...s.cooldowns, hero: hero.cooldowns },
+    players: { ...s.players, hero },
+  };
+}
 export type Ack<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
 export type RoomReply = { session: Session; state: BattleState; joinUrl: string };
 export type Signal = {
