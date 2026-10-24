@@ -1,5 +1,14 @@
 # Change log
 
+## 2026-10-24T23:35:48+05:30 — Publish the playable 3D Reality Raid implementation
+
+- Changed: added the completed local game in `apps/` and `packages/`, reproducible setup/phone-test scripts, pinned dependencies and model assets, tests, licenses, screenshots, and implementation/demo documentation. Completed project details in `README.md`, `SUBMISSION.md`, and `AI_USAGE.md`; combined local ignores with the submitted template's credential/cache exclusions.
+- Why: publish the playable game, including the requested 3D upgrade and two-player phone support, to the repository the owner submitted: `Devadathan69/GhostWire`.
+- Behavior: authoritative hero/boss rooms, solo training, gesture/manual controls, three 3D worlds and two camera views, live-video Reality Breach, encounter configuration, results/rematch, and reconnect recovery. The waiting lobby survives a host refresh before its first boss joins.
+- Validation already completed: production build and strict TypeScript passed; 37 unit/network checks and nine browser scenarios passed. The two-player camera/breach scenario passed again after the lobby fix. A separate public HTTPS check verified assets, invites, two-player shared combat, and media signaling.
+- Repository history: this is an import of completed local work on top of the existing submitted repository. Earlier local implementation commits did not exist; no timestamps or milestone commits were fabricated, and shared history is preserved.
+- Limitations: browser camera evidence is synthetic; physical phone gesture accuracy, venue-network media, live OpenAI generation, Docker, and physical Safari/iOS remain unverified. The temporary phone link requires the laptop to remain running; no permanent hosting is claimed. Human review and organizer eligibility/submission confirmations remain with the participant.
+
 ## 2026-10-24T21:53:05+05:30 — Correct Devin Hack Kochi event guidance
 
 - Changed: corrected the current event name and AI tool guidance in `.github/pull_request_template.md`, `AGENTS.md`, `AI_USAGE.md`, `CHANGELOG.md`, `README.md`, `RULES.md`, `SUBMISSION.md`.
@@ -14,7 +23,7 @@ Record each meaningful project change during the event, newest first. Update thi
 
 ## Event build log
 
-No project implementation has been recorded yet. Replace this sentence with entries as you build:
+The implementation import is recorded above. The detailed local phase and verification record is in [docs/IMPLEMENTATION_LOG.md](docs/IMPLEMENTATION_LOG.md). The following format remains available for future changes:
 
 ```text
 ## <actual timestamp> — <short change title>

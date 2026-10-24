@@ -1,15 +1,21 @@
-# Local secrets; sanitized example files may be committed.
+node_modules/
+dist/
 .env
 .env.*
 !.env.example
+recordings/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+.local/
+.qa-backups/
+
+# Credentials and additional build/cache output from the submitted template.
 !.env.*.example
 *.pem
 *.key
-
-# Common dependencies, build output, caches, and local tooling.
-node_modules/
 .next/
-dist/
 build/
 coverage/
 .venv/
@@ -17,8 +23,4 @@ venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.DS_Store
 Thumbs.db
-*.log
-
-# Add entries appropriate to your chosen language or framework.
