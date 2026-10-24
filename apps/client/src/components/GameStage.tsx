@@ -46,6 +46,12 @@ export function GameStage({
     scene.current?.setState(state);
   }, [state]);
   useEffect(() => {
+    // A surviving view can acknowledge immediately; a reloaded view waits for
+    // its first actual frame, whose callback acknowledges after shader loading.
+    if (state.renderPending && mount.current?.querySelector('canvas')?.dataset.ready === 'true')
+      onReady();
+  }, [state.renderPending, state.phase]);
+  useEffect(() => {
     scene.current?.setLiveCamera(videoReady);
   }, [videoReady]);
   useEffect(() => {
@@ -71,6 +77,10 @@ export function GameStage({
     <div
       className={`game-stage theme-${state.spec.arena} ${reality ? 'is-reality' : ''} ${state.phase === 'BREACH_TRANSITION' ? 'is-breaching' : ''}`}
       data-testid="game-stage"
+      data-impact-in={Math.min(
+        99999,
+        ...state.pending.filter((a) => a.role === 'boss').map((a) => a.resolvesAt - state.clock),
+      )}
       onPointerMove={(e) => {
         if (role !== 'boss' || !onAim || performance.now() - lastAim.current < 70) return;
         lastAim.current = performance.now();
@@ -181,9 +191,11 @@ export function GameStage({
       {state.phase === 'DISCONNECTED' && (
         <div className="cinematic-overlay">
           <span className="eyebrow">RAID PAUSED</span>
-          <h2>Signal interrupted.</h2>
+          <h2>{state.renderPending ? 'Preparing the squad’s 3D views.' : 'Signal interrupted.'}</h2>
           <p>
-            Waiting up to 30 seconds for your teammate to reconnect.
+            {state.renderPending
+              ? 'Waiting for your teammate’s graphics to finish loading.'
+              : 'Waiting up to 30 seconds for your teammate to reconnect.'}
             <br />
             Health, attacks, and cooldowns are frozen.
           </p>

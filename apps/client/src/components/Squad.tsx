@@ -25,6 +25,11 @@ export function Squad({
           className={`squad-member ${h.hp <= 0 ? 'is-down' : ''}`}
           key={h.id}
           data-testid={`squad-${h.id}`}
+          data-self={h.id === playerId}
+          data-world={`${h.fighter.position.x},${h.fighter.position.z}`}
+          data-screen={`${h.screen.x},${h.screen.y}`}
+          data-downed={h.downedUntil !== null && !h.eliminated}
+          data-hp={h.hp}
         >
           <span className="squad-color" style={{ background: h.color }} />
           <div className="squad-info">

@@ -44,6 +44,16 @@ function zone(s: RaidState, damage = 200) {
   advance(s, 50);
 }
 describe('cooperative raid rules', () => {
+  it('gives a two-hero squad a safe rescue opportunity when one hero falls', () => {
+    const s = raid();
+    s.raid.nextAttackAt = s.clock + 200;
+    zone(s);
+    expect(s.raid.nextAttackAt - s.clock).toBeGreaterThanOrEqual(4500);
+    s.raid.heroes['2'].fighter.position = { x: -2, z: 1 };
+    expect(reviveHero(s, '2', 'one')).toBeNull();
+    advance(s, 3000);
+    expect(s.raid.heroes.one.hp).toBe(40);
+  });
   it('does not stack damage where warning circles from one Cataclysm overlap', () => {
     const s = raid();
     for (const id of [999, 1000])

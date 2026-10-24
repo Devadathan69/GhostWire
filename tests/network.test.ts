@@ -123,6 +123,11 @@ describe('cooperative Socket.IO sessions', () => {
     expect(s.clock).toBe(clock);
     const replacement = await client();
     expect((await req(replacement, 'room:resume', joined.data.session)).ok).toBe(true);
+    expect(s.phase).toBe('DISCONNECTED');
+    const waitingClock = s.clock;
+    await wait(150);
+    expect(s.clock).toBe(waitingClock);
+    await req(replacement, 'battle:render-ready');
     expect(s.phase).toBe('REALITY');
     expect(s.raid.heroes[joined.data.session.playerId!].hp).toBe(49);
     await req(replacement, 'room:leave');

@@ -1,4 +1,12 @@
-# Implementation record — 24 October 2026
+# Implementation record
+
+## Cooperative redesign — 25 October 2026
+
+The owner clarified the intended game as multiple heroes teaming up against one large boss. The current implementation replaces human boss possession with 2–4 private hero sessions, server AI, scaled shared boss HP, paired-hit Aegis openings, coordinated Overdrive bursts, teammate rescue, and shared outcomes. All heroes render together with personal controls and health. Reality Breach now uses optional local camera video per device. The design/phases are in [COOPERATIVE_RAID.md](COOPERATIVE_RAID.md).
+
+Current validation: 69 unit/network tests, strict TypeScript, and the production build pass. All nine cooperative browser scenarios passed in the final combined run (5.7 minutes), including two complete human-role matches and four-hero combat. A public HTTPS check verified independent identities, invitations, assets, blocked solo damage, and paired shared damage. Physical gesture/device rehearsal remains unverified.
+
+## Earlier implementation — 24 October 2026
 
 The starting workspace was empty. The supplied blueprint was analyzed and divided into the six dependency-ordered phases in `IMPLEMENTATION_PLAN.md`.
 

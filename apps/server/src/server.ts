@@ -131,16 +131,23 @@ export function makeServer() {
   }
   function resumeIfConnected(r: Room) {
     const s = r.state;
-    if (
-      Object.values(s.raid.heroes)
-        .filter((h) => r.tokens[h.id] || h.bot)
-        .every((h) => h.connected)
-    ) {
+    const heroes = Object.values(s.raid.heroes).filter((h) => r.tokens[h.id] || h.bot);
+    if (heroes.every((h) => h.connected)) {
+      s.reconnectUntil = null;
       if (s.phase === 'DISCONNECTED') {
+        if (
+          !['LOBBY', 'CALIBRATING'].includes(s.resumePhase ?? 'LOBBY') &&
+          heroes.some((h) => !h.renderReady)
+        ) {
+          s.renderPending = true;
+          s.renderDeadline ??= Date.now() + 60000;
+          return;
+        }
         s.phase = s.resumePhase ?? 'LOBBY';
         s.resumePhase = null;
+        s.renderPending = false;
+        s.renderDeadline = null;
       }
-      s.reconnectUntil = null;
     }
   }
   function bind(socket: Socket, r: Room, id: string, reply: Reply) {
@@ -156,6 +163,21 @@ export function makeServer() {
     r.sockets[id] = socket.id;
     r.sequences[id] = -1;
     r.state.raid.heroes[id].connected = true;
+    const s = r.state;
+    const battlePhase = s.phase === 'DISCONNECTED' ? s.resumePhase : s.phase;
+    if (battlePhase && !['LOBBY', 'CALIBRATING', 'VICTORY', 'DEFEAT'].includes(battlePhase)) {
+      if (s.phase !== 'DISCONNECTED') {
+        s.resumePhase = s.phase;
+        s.phase = 'DISCONNECTED';
+      }
+      s.raid.heroes[id].renderReady = false;
+      s.renderPending = true;
+      s.renderDeadline = Date.now() + 60000;
+      for (const h of Object.values(s.raid.heroes)) {
+        h.fighter.movement = { x: 0, z: 0, sprint: false };
+        h.reviving = null;
+      }
+    }
     const session: Session = {
       code: r.state.code,
       role: 'hero',
@@ -210,6 +232,8 @@ export function makeServer() {
       r.state.phaseAt = r.state.clock;
       r.state.resumePhase = null;
       r.state.pending = [];
+      r.state.renderPending = false;
+      r.state.renderDeadline = null;
       r.state.raid.endReason = 'The squad lost its teammates. A raid needs at least two heroes.';
       r.state.reconnectUntil = null;
     }
@@ -400,10 +424,16 @@ export function makeServer() {
       }
       const s = m.room.state;
       s.raid.heroes[m.id].renderReady = true;
-      if (s.renderPending && Object.values(s.raid.heroes).every((h) => h.renderReady)) {
+      if (
+        s.renderPending &&
+        Object.values(s.raid.heroes)
+          .filter((h) => m.room.tokens[h.id] || h.bot)
+          .every((h) => h.connected && h.renderReady)
+      ) {
         s.renderPending = false;
         s.renderDeadline = null;
-        s.phaseAt = s.clock;
+        if (s.phase === 'DISCONNECTED') resumeIfConnected(m.room);
+        else s.phaseAt = s.clock;
       }
       broadcast(m.room);
       reply({ ok: true, data: null });
@@ -543,10 +573,7 @@ export function makeServer() {
           departed(r, h.id);
         if (!rooms.has(code)) continue;
         s.reconnectUntil = null;
-        if (s.phase === 'DISCONNECTED') {
-          s.phase = s.resumePhase ?? 'LOBBY';
-          s.resumePhase = null;
-        }
+        resumeIfConnected(r);
       }
       if (s.renderPending && s.renderDeadline && now > s.renderDeadline) {
         closeRoom(

@@ -1,6 +1,6 @@
 # Exact controls
 
-The in-game **How to play** screen contains the full role-by-role guide. Enable the camera, select **Body gestures** or **One hand**, and hold neutral for about 1.3 seconds to calibrate. Recalibrate after moving the camera. Tracking loss stops motion movement and suppresses gestures.
+The in-game **How to play** screen contains the full cooperative hero guide. Enable the camera, select **Body gestures** or **One hand**, and hold neutral for about 1.3 seconds to calibrate. Recalibrate after moving the camera. Tracking loss stops motion movement and suppresses gestures.
 
 ## Movement
 
@@ -28,11 +28,11 @@ Strike and Kick need striking distance in the arena; **MOVE CLOSER** identifies 
 
 ## Rescue a teammate
 
-Everyone controls a hero. Press **F** to attempt revival of the nearest downed teammate, or tap that teammate's **Revive** button in the squad panel. Get within 2.6 world units (or the corresponding screen distance in Reality), then stay still for 3 seconds. Movement, another action, or damage interrupts. Reviving restores 40% health and 2 seconds of protection. Downed heroes cannot act and have 20 seconds before elimination. Eliminated heroes spectate and share the team's result.
+The boss briefly delays its next cast when a hero falls, creating a rescue opening. Everyone controls a hero. Press **F** to attempt revival of the nearest downed teammate, or tap that teammate's **Revive** button in the squad panel. Get within 2.6 world units (or the corresponding screen distance in Reality), then stay still for 3 seconds. Movement, another action, or damage interrupts. Reviving restores 40% health and 2 seconds of protection. Downed heroes cannot act and have 20 seconds before elimination. Eliminated heroes spectate and share the team's result.
 
 ## Combat and outcomes
 
-Warning rings show locked damage zones. Leave the ring, guard, evade, or time a jump before impact. Striking during boss recovery grants bonus damage. Duel / Overlook switches camera angle. Both views finish loading before the opening countdown advances.
+Warning rings show locked damage zones. Leave the ring, guard, evade, or time a jump before impact. Striking during boss recovery grants bonus damage. Duel / Overlook switches camera angle. All squad views finish loading before the opening countdown advances.
 
 Two distinct heroes landing attacks within 2 seconds break Soul Aegis for a 6-second damage window. Solo hits through Aegis deal zero damage. Paired Overdrives within 1.8 seconds add 40 Unity Burst damage. No friendly fire. At half scaled boss HP, Reality Breach begins. Local camera video appears when enabled; the virtual fallback is clearly labeled. The squad shares **MISSION PASSED** or **MISSION FAILED**, with team stats and recap download. A squad wipe or the 180-second timer ends the raid. The squad leader requests Raid again; all humans ready again.
 

@@ -1,60 +1,51 @@
-# Verification and rehearsal matrix
+# Cooperative verification and rehearsal
 
-## Automated checks
+The current game is a 2–4 hero raid against one AI boss. [COOPERATIVE_RAID.md](COOPERATIVE_RAID.md) records the mechanism and implementation phases. The old versus-mode audit is historical.
 
-Latest upgrade: **46 unit/network tests and all 10 browser scenarios passed**, along with strict TypeScript and the production build. The public HTTPS check passed assets, invites, shared combat, and media signaling. Physical rehearsal remains separate below.
+## Automated unit and network checks
 
-`npm test` covers the following independent risks:
+Latest cooperative pass: **69 tests in eight files**, all passing. Strict TypeScript and the production build also pass.
 
-- Readiness and role gates, attack ownership, anti-replay sequences, cooldown enforcement, telegraph delay, defense timing, damage clamps, victory and defeat.
-- A single threshold breach, queue cancellation during transition, phase freeze while disconnected, preserved attack deadlines after resume, targeted collision and misses.
-- Three valid presets; rejected unsupported mechanics, out-of-range health and invalid asset values.
-- Mirrored widescreen coordinates, portrait/4:3 cover cropping, preserved camera center.
-- Perspective projection of authoritative screen anchors and free world positions, at both 3D camera angles and desktop/mobile stage sizes.
-- Neutral calibration, required landmark confidence, missing tracking, one punch per extension, held guard and duck.
-- Real socket connections: one boss slot, private-token resume, wrong-token denial, host-only starts, shared health, and signaling isolation.
-- AI success, no-key fallback, refusal, incomplete responses, schema-invalid output, unsupported actions and upstream errors. The API is mocked in these tests; these are not live model calls.
-- Normalized diagonal movement, speed and arena bounds, stale-input stopping, pause/result freezes, both roles moving, melee reach, locked world targets, jump timing, kick damage, two-axis live-feed movement, and renderer-readiness gating.
-- Expanded body gestures and hero hand mode: overhead charge, one-hand jump, visible knee kick, mirrored lean/depth movement, pinch, fist, and index-point safeguards.
+- Shared input/schema validation, calibrated pose/hand gesture fixtures, coordinate mapping, and 3D projection.
+- Two-hero minimum, all-player readiness, four-player scaling, and locked combat roster.
+- Zero solo damage through Aegis; distinct-hero pairing within two seconds; six-second openings; range misses; window expiry.
+- Independent simultaneous attacks/cooldowns, paired Overdrive Burst, no repeated/same-hero burst credit, and no friendly fire.
+- Personal speed-normalized movement, arena bounds, stale-input stop, guards/jumps/evades, and two-axis Reality movement.
+- Server AI threat/following, fixed warning marks, squad-wide volleys, and one-hit-per-volley behavior in overlapping circles.
+- Downed controls, proximity, uninterrupted three-second rescue, movement/action/damage interruption (including the final tick), 40% revive health, protection, 20-second bleedout, and a genuine rescue opening for a two-hero squad.
+- Scaled half-health breach, phase cancellation, terminal simulation freeze, squad wipe, and the 180-second limit.
+- Clearly labeled AI ally that cannot damage Aegis by itself.
+- Real Socket.IO ownership/capacity, token privacy, takeover denial, anti-replay sequences, leader transfer, lobby refresh, all-renderer readiness on initial start and reconnect, full-squad pause/resume, expiry, and fresh rematch readiness/health.
+- Optional encounter-director success/failure/refusal/schema paths use a mocked API, not a live request.
 
-`npm run test:e2e` runs Chromium against the production build:
+## Browser checks
 
-1. Solo match from landing to ready gate, combat, breach, victory, PNG recap, and rematch.
-2. Hero and mobile-sized boss in independent contexts. Join link, actual camera acquisition using a synthetic device, MediaPipe loading, shared damage, browser reload/resume, real WebRTC transfer, video-backed breach, aimed strike damage, keyboard after touch, stop-camera cleanup, and leave propagation.
-3. Narrow mobile layout, a contrasting shadow encounter, denied-camera messaging, and continued manual gameplay.
-4. A passive hero genuinely loses; combat controls disappear at zero health.
-5. The Tempest 3D arena changes perspective while retaining authoritative world positions; a simulated WebGL context loss shows a recovery message, restoration resumes rendering, and leaving removes the canvas. The existing audit scenarios additionally cover camera cancellation/retry and two complete two-player matches with replay readiness.
-6. Real keyboard walking/running, released movement stopping, jump/kick buttons, a rendered elemental cast and resulting damage, and both roles' exact controls guide. The complete browser suite now contains ten scenarios.
+All nine Chromium scenarios passed against the production build in the final combined run (5.7 minutes). Readiness on initial start and graphics-ready reconnect was verified; two human-role contexts completed two full matches with matching results and fresh replay readiness.
 
-Screenshots are generated in `docs/screenshots/`. `breach-synthetic-camera.png` and camera-bearing boss screenshots contain Chromium's synthetic live source, not footage of a person. Traces and temporary browser recordings remain ignored in `test-results/`.
+1. Camera/motion preferences survive lobby-to-fight transitions and camera restart.
+2. Cancellation and leaving discard a late camera permission result and stop its tracks.
+3. A denied camera request can be retried with the synthetic camera fixture.
+4. Actual keyboard walking, sprint, input release, jump/kick, paired powers/shared damage, and the exact guide.
+5. Training with Echo: a complete cooperative win through breach, team result, recap export, and rematch.
+6. Two independent human-role contexts: invitations, private host refresh, solo shield proof, coordinated combat, local synthetic-camera Reality Breach, navigation disconnect/resume, matching wins, and two full matches with fresh readiness.
+7. Four-hero lobby rejects a fifth; all four 3D views load, scale to 660 HP, and coordinate actual boss damage.
+8. Narrow phone layout, camera denial/manual control, and a real passive squad defeat from boss attacks.
+9. Tempest perspective changes preserve world positions; WebGL interruption displays an error, restoration recovers rendering, and leaving removes the canvas.
 
-## Required physical rehearsal before submission
+Screenshots prefixed `coop-` are current cooperative QA evidence. Camera images are synthetic Chromium sources, not a person or demonstration recording. Earlier screenshots and QA_AUDIT.md describe the former versus game. Traces and temporary browser recordings stay ignored in test-results/.
 
-These checks cannot be replaced by synthetic landmarks or a local fake camera:
+## Public phone link
 
-| Check            | Procedure                                                                    | Pass condition                                                         |
-| ---------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Hero gestures    | Calibrate in intended lighting; punch ten times at varied comfortable speeds | One deliberate extension produces one strike; neutral produces none    |
-| Defenses         | Guard, then duck during separate telegraphs                                  | Reduced damage and evasion at the expected times                       |
-| New motion       | One hand overhead, both overhead, then a knee above its hip; return neutral  | Jump, Overdrive, and Kick register distinctly without unwanted repeats |
-| Free movement    | Lean left/right, step closer/farther, release joystick and keyboard input    | Correct direction, bounded speed, reliable stopping and sprinting      |
-| Boss pose        | Raise, extend, and guard unpredictably                                       | Correct preauthored action follows without repeated accidental attacks |
-| Boss hand mode   | Open-palm calibration, lateral swipe, pinch, closed fist                     | Stable aim and predictable action classification                       |
-| Lost tracking    | Move wrists out of frame, then return                                        | Input pauses; feedback explains loss; tracking recovers                |
-| Camera mapping   | Move hand left/right/top/bottom with portrait and landscape feeds            | Display and attack target agree after mirror/crop transform            |
-| Real phone       | Join over the intended trusted HTTPS origin                                  | Camera permission, controls, and video link all work                   |
-| Venue network    | Use actual Wi-Fi/cellular path; configure TURN if needed                     | Live video works or failure is explicitly labeled                      |
-| Camera lifecycle | Stop, restart, revoke permission, then re-enable                             | Device indicator and remote image reflect the current state            |
-| Network drop     | Interrupt a participant for 5 seconds                                        | Match pauses; reconnect preserves health and remaining warning time    |
-| Long disconnect  | Stay offline for more than 30 seconds                                        | Both clients exit the expired room clearly                             |
-| AI live          | Supply a server key; submit two contrasting custom stories                   | Validated original names and supported visuals; source marked AI       |
-| Actual demo      | Record two uninterrupted consenting two-person takes                         | Possession, breach, targeted attack, and finish all visible            |
+The HTTPS script verifies model/WASM assets, public invitations, separate hero identities, blocked solo damage, paired shared damage, and AI target selection. Video is local-only in this release; it requires no peer signaling/TURN service. Transport checks do not certify physical phone motion or rendering performance.
 
-## Known boundaries
+## Physical rehearsal still required
 
-- No claim of measured gesture-to-screen latency or 60 FPS across all devices.
-- Inference runs at approximately 15 Hz on the main thread. Heavy phones may need hand mode, a lower visual workload, or manual controls.
-- External camera geometry and occlusion are not reconstructed. The game renders 3D meshes over the camera's 2D video image and uses normalized target collision.
-- TURN is configurable but no TURN service is provisioned by this repository.
-- Browser testing establishes Chromium behavior locally. Safari/iOS and physical Android are not yet certified.
-- The optional Docker recipe has not been run here.
+- Join from actual 2–4 devices using the same HTTPS origin. Check landscape/portrait layouts and rendering performance.
+- Calibrate body and hand modes in intended lighting; deliberately test all six actions, neutral poses, lost tracking, and motion movement stopping.
+- Coordinate two real heroes to break Aegis, combine Overdrives, spread out during volleys, and revive a fallen ally.
+- Enable local camera, cross the breach, and verify every visible hero/attack mark matches shared positions. Stop/restart camera; verify automatic stop at a team result.
+- Interrupt and restore a device connection; check the 30-second pause, private resume, and departure behavior.
+- If demonstrating AI-generated encounters, verify live output using the owner's server key. Docker and physical Safari/iOS remain unverified.
+- Record only through a deliberate action and with every participant's consent. Never present synthetic evidence as a human demo.
+
+Reality Breach does not reconstruct rooms or provide furniture occlusion. No frame-rate or gesture-latency guarantee is claimed across devices. Rooms are in memory; restarting the server ends them. A temporary tunnel needs the laptop awake and online.

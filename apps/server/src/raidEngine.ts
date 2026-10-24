@@ -93,7 +93,7 @@ export function startRaid(s: RaidState, waitForRenderer = false): string | null 
     return 'Every teammate must be connected and ready.';
   s.raid.maxBossHp = Math.round(s.spec.bossMaxHp * (3 + (heroes.length - 2) * 1.25));
   s.bossHp = s.raid.maxBossHp;
-  for (const h of heroes) h.renderReady = h.bot;
+  for (const h of heroes) h.renderReady = !waitForRenderer || h.bot;
   setPhase(s, 'INTRO');
   s.renderPending = waitForRenderer;
   s.renderDeadline = waitForRenderer ? Date.now() + 60000 : null;
@@ -220,6 +220,8 @@ function down(s: RaidState, h: RaidHero) {
   h.downedUntil = s.clock + 20000;
   h.reviving = null;
   h.fighter.movement = zero();
+  // A two-hero squad needs a real opportunity to finish its three-second rescue.
+  s.raid.nextAttackAt = Math.max(s.raid.nextAttackAt, s.clock + 4500);
   s.pending = s.pending.filter((a) => a.role !== 'hero' || a.playerId !== h.id);
   log(s, 'boss', 'downed', `${h.name.toUpperCase()} DOWN`, h.id);
 }

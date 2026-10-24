@@ -73,17 +73,13 @@ test('two human heroes coordinate, share a camera-backed breach, reconnect and w
         await expect(
           peer.getByText('VIRTUAL ARENA · NO LIVE CAMERA', { exact: true }),
         ).toBeVisible();
-        await c2.setOffline(true);
+        await peer.goto('about:blank');
         await expect(
           host.getByRole('heading', { name: 'Signal interrupted.', exact: true }),
         ).toBeVisible();
-        await Promise.all([
-          host.screenshot({ path: 'docs/screenshots/coop-reconnect.png', fullPage: true }),
-          peer.screenshot({ path: 'docs/screenshots/coop-mobile-battle.png', fullPage: true }),
-        ]);
+        await host.screenshot({ path: 'docs/screenshots/coop-reconnect.png', fullPage: true });
         await host.getByRole('button', { name: 'Stop camera', exact: true }).click();
-        await c2.setOffline(false);
-        await peer.reload();
+        await peer.goto(url);
         await expect(peer.getByRole('button', { name: 'Strike', exact: true })).toBeEnabled();
         await expect(
           host.getByText('VIRTUAL ARENA · NO LIVE CAMERA', { exact: true }),
@@ -108,6 +104,7 @@ test('two human heroes coordinate, share a camera-backed breach, reconnect and w
 });
 
 test('four hero lobby rejects a fifth and keeps everyone on the same team', async ({ browser }) => {
+  test.setTimeout(180000);
   const contexts = await Promise.all(
     Array.from({ length: 5 }, () => browser.newContext({ viewport: { width: 390, height: 844 } })),
   );
@@ -124,6 +121,22 @@ test('four hero lobby rejects a fifth and keeps everyone on the same team', asyn
     await expect(pages[4].getByRole('alert')).toContainText('squad is full');
     await expect(pages[0].getByRole('button', { name: 'Begin raid', exact: true })).toBeDisabled();
     await pages[0].screenshot({ path: 'docs/screenshots/coop-four-heroes.png', fullPage: true });
+    for (const p of pages.slice(1, 4)) await ready(p);
+    await start(pages[0]);
+    for (const p of pages.slice(0, 4)) {
+      await expect(p.locator('canvas[data-renderer="three"]')).toHaveAttribute('data-heroes', '4');
+      await expect(p.getByTestId('boss-hp')).toHaveText('660 / 660');
+    }
+    await Promise.all(
+      pages
+        .slice(0, 2)
+        .map((p) => p.getByRole('button', { name: 'Overdrive', exact: true }).click()),
+    );
+    await expect(pages[0].getByTestId('boss-hp')).not.toHaveText('660 / 660');
+    await pages[0].screenshot({
+      path: 'docs/screenshots/coop-four-hero-battle.png',
+      fullPage: true,
+    });
   } finally {
     for (const c of contexts) await c.close();
   }

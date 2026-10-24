@@ -1,5 +1,19 @@
 # Change log
 
+## 2026-10-25T01:14:55+05:30 — Complete cooperative release verification
+
+- Validation: final production build and strict TypeScript passed; all 69 unit/network tests passed. The final combined browser run passed all nine scenarios in 5.7 minutes: camera lifecycle, real movement/powers, AI-ally victory/recap, two full human-role matches with synthetic local-camera breach and graphics-ready reconnect, four-hero combat/capacity, real team defeat, replay, and graphics recovery.
+- Public test: the refreshed HTTPS build passed model/WASM assets, invitation origins, private independent hero identities, zero solo shield damage, shared paired damage, and AI target selection. The host lobby is ready for teammates; live room data remains ignored locally.
+- Documentation/evidence: completed the current cooperative design, controls, implementation/verification record, and QA screenshots. Publication review covered 119 candidate files with zero credential-pattern matches or broken local Markdown links. Existing repository history remains preserved.
+- Limitations: camera sources/landmarks were synthetic. Human review, physical gesture/device rehearsal, live OpenAI output, and Docker remain unverified. The temporary phone URL requires the laptop to stay awake.
+
+## 2026-10-25T01:08:50+05:30 — Protect returning heroes and verify complete cooperative raids
+
+- Changed: reconnect/takeover now waits for the returning hero's first rendered frame before resuming the squad; existing views acknowledge without reloading. Added a 4.5-second rescue opening when a hero falls, squad state feedback, and a regression for finishing that rescue. Updated current controls, verification matrix, implementation record, and cooperative screenshots.
+- Why: prevent boss damage while a returning device is compiling graphics, and give two-hero squads time to rescue an ally. Browser controls are driven through the same DOM keyboard handlers with mobile/manual fallback and real authoritative server combat.
+- Validation: all 69 unit/network tests, strict TypeScript, and the production build pass. Eight browser scenarios passed, including four independent hero views dealing shared scaled damage; the final two-human scenario then passed separately with local synthetic-camera breach, navigation disconnect, graphics readiness, two complete victories, and fresh rematch readiness. A final combined nine-scenario run is in progress.
+- Limitations: synthetic media/landmarks do not establish real-person recognition. Physical phone/Safari performance and live encounter generation remain manual checks. No permanent host or spatial room reconstruction is claimed.
+
 ## 2026-10-25T00:48:06+05:30 — Verify squad rules and refine coordinated combat
 
 - Changed: capped overlapping zones from one Cataclysm to one hit per hero, tuned raid damage, and made final-tick damage interrupt revives. Cameras stop automatically at a team outcome. Removed obsolete peer-video code and TURN setup; migrated current controls, phone/demo guides and public-link checks to local-camera cooperative play.

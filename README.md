@@ -4,6 +4,8 @@
 
 A browser 3D raid for **2–4 heroes against one AI boss**. Everyone controls a hero. Coordinate attacks to break the boss's shield, combine powers, rescue teammates, and survive Reality Breach together.
 
+![Cooperative 3D raid](docs/screenshots/coop-arena.png)
+
 [Cooperative design and phases](docs/COOPERATIVE_RAID.md) · [Exact controls](docs/CONTROLS.md) · [Phone walkthrough](docs/PHONE_TEST.md) · [Submission](SUBMISSION.md) · [Change log](CHANGELOG.md) · [AI assistance](AI_USAGE.md)
 
 ## Play locally
@@ -54,7 +56,7 @@ Windows: double-click **Start-Phone-Test.cmd** or run `npm run phone:start` afte
 
 The temporary public link works while the laptop stays awake and online. A phone's localhost points to the phone itself. Plain LAN HTTP supports manual controls, while cameras need HTTPS. The server serves UI and Socket.IO together. For permanent hosting, use a long-running Node process behind HTTPS with WebSocket upgrades. Configure `PUBLIC_URL` for the canonical invite origin and `ALLOWED_ORIGINS` only for additional trusted frontends.
 
-Run one server instance: rooms live in memory and restarts end active raids. Short disconnects pause the squad up to 30 seconds. Private tokens resume individual heroes. On timeout the missing hero is removed; squads with at least two connected heroes can continue. Fewer teammates produce a team failure. No room can be joined after combat starts.
+Run one server instance: rooms live in memory and restarts end active raids. Short disconnects pause the squad up to 30 seconds. Private tokens resume individual heroes; the squad stays paused until the returning 3D view is ready. On timeout the missing hero is removed; squads with at least two connected heroes can continue. Fewer teammates produce a team failure. No room can be joined after combat starts.
 
 Optional container recipe (not executed here):
 
@@ -77,13 +79,13 @@ npm run build
 npm run test:e2e
 ```
 
-The first cooperative milestone passed **68 unit/network tests**, strict TypeScript, and the production build. The browser suite is being migrated and exercised against the cooperative game; final results will be recorded after completion. Coverage includes shield pairing/expiry, burst timing, personal movement/defenses, shared AOE, rescue interruption/bleedout, wipe/time limit, scaled breach, AI companion, room capacity/ownership, reconnects, renderer gates, and replay.
+The cooperative suite passes **69 unit/network tests**, strict TypeScript, and the production build. **All nine cooperative browser scenarios passed in the final combined run (5.7 minutes)**, including four-hero combat, two complete human-role matches, local-camera breach, safe graphics-ready reconnect, both outcomes, and replay. Coverage includes shield pairing/expiry, burst timing, personal movement/defenses, shared AOE, rescue interruption/bleedout, wipe/time limit, scaled breach, AI companion, room capacity/ownership, renderer gates on start/reconnect, and replay.
 
 Physical body/hand recognition, Android/iOS performance, venue networks, a live OpenAI request, and Docker remain manual checks. Synthetic camera/landmark tests establish integration rather than real-person recognition. Existing versus-mode screenshots and [the earlier audit](docs/QA_AUDIT.md) are historical evidence; they do not establish the cooperative release. New cooperative evidence is recorded separately.
 
 ## Privacy and boundaries
 
-All camera video stays local in cooperative mode. No microphone, camera recording, face identification, or video storage. Stop camera terminates tracks. Recap export contains only game text/stats. Reality Breach composites 3D meshes over video; it does not reconstruct rooms or occlude behind furniture. The boss uses authored animations and server AI. Accounts, matchmaking, persistent leaderboards, and production-scale anti-cheat are outside this release.
+All camera video stays local in cooperative mode. No microphone, camera recording, face identification, or video storage. Stop camera terminates tracks; a team outcome automatically stops it too. Recap export contains only game text/stats. Reality Breach composites 3D meshes over video; it does not reconstruct rooms or occlude behind furniture. The boss uses authored animations and server AI. Accounts, matchmaking, persistent leaderboards, and production-scale anti-cheat are outside this release.
 
 Original characters, terrain, textures, and effects are authored as Three.js geometry/shaders and SVG/CSS. Runtime/model/fonts retain their licenses in [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md). Event guidance remains in [RULES.md](RULES.md).
 
