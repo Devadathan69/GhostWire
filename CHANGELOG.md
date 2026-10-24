@@ -1,5 +1,12 @@
 # Change log
 
+## 2026-10-25T00:19:16+05:30 — Record the published movement and motion revision
+
+- Changed: recorded implementation revision `aaaa3b02540e059a83d337760caacfde5b95fb3c` and the upgrade's final scope and verification in `SUBMISSION.md`; updated the AI record. No game code changed.
+- Publication: the implementation and its preceding milestone were pushed successfully to the submitted `Devadathan69/GhostWire` repository on `main`, preserving its history.
+- Validation: final production build/TypeScript, 46 unit/network tests, all 10 browser scenarios, and public HTTPS/network checks passed before this documentation update. Publication review covered 101 candidate files, with zero credential-pattern matches and zero broken local Markdown links; staged whitespace passed.
+- Limitations: physical-device/real-person rehearsal and human review remain pending; no additional runtime result is claimed for this documentation-only commit.
+
 ## 2026-10-25T00:17:33+05:30 — Finish graphics loading, input precision, and full regression
 
 - Changed: preload character, shield, and power shaders before the renderer-ready signal and after graphics recovery. Shift/touch RUN now also applies to motion movement; opening instructions resets touch input. Index-up Jump requires an upward finger, and raised-hand actions use a real above-head threshold.
