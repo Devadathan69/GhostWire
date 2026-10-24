@@ -1,5 +1,13 @@
 import { io } from 'socket.io-client';
-import type { Ack, Action, BattleState, RoomReply, Session, Target } from '@ghostwire/shared';
+import type {
+  Ack,
+  Action,
+  BattleState,
+  RoomReply,
+  Session,
+  Target,
+  Movement,
+} from '@ghostwire/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const socket = io({
@@ -85,6 +93,9 @@ export function useSession() {
     if (socket.connected && current.current?.role === 'boss')
       socket.volatile.emit('boss:target', target);
   }, []);
+  const move = useCallback((movement: Movement) => {
+    if (socket.connected && current.current) socket.volatile.emit('fighter:move', movement);
+  }, []);
   const leave = useCallback(async () => {
     if (socket.connected) await request('room:leave').catch(() => {});
     current.current = null;
@@ -93,5 +104,17 @@ export function useSession() {
     sessionStorage.removeItem(storageKey);
     history.replaceState(null, '', '/');
   }, []);
-  return { state, session, joinUrl, connected, notice, setNotice, accept, intent, aim, leave };
+  return {
+    state,
+    session,
+    joinUrl,
+    connected,
+    notice,
+    setNotice,
+    accept,
+    intent,
+    aim,
+    move,
+    leave,
+  };
 }

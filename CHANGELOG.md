@@ -1,5 +1,14 @@
 # Change log
 
+## 2026-10-25T00:05:29+05:30 — Add free movement and richer motion combat
+
+- Changed: replaced lane movement with authoritative free walking/running for both arena fighters and two-axis movement over Reality Breach. Added a touch joystick, input-release/stale-input stopping, melee reach, locked world-space attack zones, jump evasion, kicks, and a training boss that follows the hero.
+- Motion: added calibrated body movement, hero hands-up Overdrive, one-hand-raised Jump, knee Kick, and hero One hand mode with palm movement, swipe, pinch, fist, and index-point gestures. Added exact in-game and Markdown controls guides.
+- Presentation: smoother articulated armor/creature rigs, animated knees/elbows/cape, textured PBR surfaces, environment reflections, organic terrain, braziers, elemental casts/impacts, and full-screen role-specific Mission Passed/Failed results. Combat waits for both renderers before its countdown; slower devices reduce detail.
+- Files: shared contracts, server combat/networking, client tracking/input/rendering/components/styles, movement/gesture/network/browser tests, README and docs.
+- Validation: strict TypeScript and production build pass; 46 unit/network tests pass. Initial targeted movement and graphics-recovery browser scenarios passed; the complete updated browser regression is in progress and will be recorded separately.
+- Limitations: physical gesture accuracy, physical phone/Safari performance, live OpenAI output, and venue-network media remain unverified. This is an authored browser 3D upgrade, not a claim of photographic fidelity or spatial room reconstruction.
+
 ## 2026-10-24T23:38:29+05:30 — Record the implementation revision
 
 - Changed: recorded implementation commit `80df2ad32fd8206e66c3b187d750d21bab0d59a1` in `SUBMISSION.md` and updated the AI/publication record. Game code is unchanged.

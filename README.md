@@ -29,17 +29,22 @@ Development: `npm run dev` serves the UI at **http://localhost:5173**, with API 
 
 ## Controls
 
-| Role                 | Keyboard / touch           | Body gesture                                                        |
-| -------------------- | -------------------------- | ------------------------------------------------------------------- |
-| Hero                 | J: Strike                  | Extend one arm from neutral                                         |
-| Hero                 | K: Guard                   | Cross hands near upper chest                                        |
-| Hero                 | L: Evade                   | Lower shoulders slightly                                            |
-| Hero                 | Space: Overdrive           | Manual activation, 8-second cooldown                                |
-| Hero                 | A/D or arrows: change lane | Manual activation                                                   |
-| Boss                 | J: Swipe                   | Extend one arm                                                      |
-| Boss                 | K: Guard                   | Cross hands near chest                                              |
-| Boss                 | Space: Power               | Raise both hands above shoulders                                    |
-| Boss, hand-only mode | Swipe / Guard / Power      | Move open hand sideways / close fist / pinch thumb and index finger |
+See [the exact controls, gestures, timings, and hand-mode alternatives](docs/CONTROLS.md). The same guide is available through **How to play** in the game. Touch supports a 360-degree joystick and all action buttons.
+
+| Role                 | Keyboard / touch       | Body gesture                                                        |
+| -------------------- | ---------------------- | ------------------------------------------------------------------- |
+| Hero                 | J: Strike              | Extend one arm from neutral                                         |
+| Hero                 | K: Guard               | Cross hands near upper chest                                        |
+| Hero                 | L: Evade               | Lower shoulders slightly                                            |
+| Hero                 | Space: Overdrive       | Hold both hands above the head for half a second                    |
+| Hero                 | I: Kick                | Lift one knee above its hip, with hips and knees visible            |
+| Hero                 | E: Jump                | Hold one hand high, with the other below shoulder level             |
+| Both, arena          | Hold WASD / arrows     | Lean left/right; step closer to advance and farther away to retreat |
+| Both, arena          | Hold Shift / touch RUN | Step closer until calibrated shoulder width grows about one third   |
+| Boss                 | J: Swipe               | Extend one arm                                                      |
+| Boss                 | K: Guard               | Cross hands near chest                                              |
+| Boss                 | Space: Power           | Raise both hands above shoulders                                    |
+| Boss, hand-only mode | Swipe / Guard / Power  | Move open hand sideways / close fist / pinch thumb and index finger |
 
 Camera controls are optional and require a deliberate click. Hold a neutral pose for calibration, keep the relevant joints visible, and use small comfortable movements. A confidence drop suppresses gesture input; manual controls remain available. The boss can aim by moving a tracked wrist/palm or by touching/moving a pointer over the arena.
 
@@ -48,7 +53,7 @@ The colored ring is a telegraph: damage resolves when its timer finishes. A targ
 ## Implemented scope
 
 - Cinematic responsive landing page, three curated worlds, editable story prompt, lobby and QR invitations.
-- Solo training and real two-player combat with authoritative health, cooldowns, attacks, guards, lane movement, evasion, stats, victory, defeat, and rematch.
+- Solo training and real two-player combat with authoritative free movement, running, speed/boundary limits, melee reach, locked attack zones, jumps, kicks, guards, evasion, stats, victory, defeat, and rematch. Training bosses follow a distant hero.
 - Pose and hand tracking using pinned local MediaPipe models/WASM, calibration, confidence filtering, smoothing, gesture cooldowns, camera errors, stop controls, and keyboard/touch fallbacks.
 - Boss-to-hero WebRTC video with room-scoped signaling, camera restart, ICE configuration, generation IDs, stale-candidate protection, and retry controls.
 - A real 3D arena with articulated armored fighters, perspective cameras, dynamic lighting, shadows, projectiles, and three themed worlds. Switch between Duel and Overlook views during arena combat.
@@ -103,7 +108,7 @@ npm run test:e2e
 
 Unit/integration tests exercise real Socket.IO sessions, combat, schemas, coordinate transforms, gesture fixtures, and AI success/failure branches. Browser tests exercise actual UI controls, both outcomes, two independent players, camera denial, synthetic live WebRTC, real-target damage, reload recovery, recap export, mobile layouts, and rematch.
 
-The completed 3D build passed **37 unit/network checks and nine browser scenarios**. The two-player camera/breach scenario was rerun successfully after the waiting-lobby refresh fix. See [the implementation record](docs/IMPLEMENTATION_LOG.md) for the current scope; the independent audit records an earlier milestone.
+The earlier 3D release passed **37 unit/network checks and nine browser scenarios**. The free-movement/motion upgrade currently passes **46 unit/network checks**; its full browser regression is being finalized. The two-player camera/breach scenario was rerun successfully after the waiting-lobby refresh fix. See [the implementation record](docs/IMPLEMENTATION_LOG.md) for the current scope; the independent audit records an earlier milestone.
 
 Browser camera evidence uses Chromium's **synthetic camera**, not a person or a prerecorded demonstration. It establishes that media transport/compositing works locally; it does not establish real-body gesture accuracy or phone-network connectivity. Real lighting/device testing and a consenting two-person demo recording remain required before a hackathon submission. A live OpenAI response has not been verified without an API key. The Docker recipe is provided but not executed in this environment.
 
@@ -125,11 +130,11 @@ tests/              Unit, real-network integration, and Playwright tests
 docs/               Phases, QA evidence, demo guide and screenshots
 ```
 
-React renders the interface; Three.js renders actual mesh characters and environments through a perspective camera. Rigid geometry is batched, floor tiles are instanced, pixel density is capped for phones, and slow devices automatically reduce rendering detail. WebGL 2 is required; unavailable or interrupted graphics display an actionable message. Clients submit intents, not damage or health. The server ticks at 20 Hz and broadcasts authoritative snapshots. The simulation clock freezes on disconnect, preserving remaining telegraphs/cooldowns. Both remote video and target mapping use mirrored `object-fit: cover` geometry. Hero anchors are unprojected from authoritative screen coordinates onto the 3D floor; Reality Breach warning circles retain the exact screen-space damage radius. Boss attack targets are fixed at acceptance, so movement after wind-up cannot retroactively move a damage zone.
+React renders the interface; Three.js renders actual mesh characters and environments through a perspective camera. Rigid geometry is batched, floor tiles are instanced, pixel density is capped for phones, and slow devices automatically reduce rendering detail. WebGL 2 is required; unavailable or interrupted graphics display an actionable message. Clients submit intents, not damage or health. The server ticks at 20 Hz and broadcasts authoritative snapshots. The simulation clock freezes on disconnect, preserving remaining telegraphs/cooldowns. Both remote video and target mapping use mirrored `object-fit: cover` geometry. Arena fighter positions come from the server; the miniature Reality Breach hero is unprojected onto a camera-facing plane; Reality Breach warning circles retain the exact screen-space damage radius. Boss attack targets are fixed at acceptance, so movement after wind-up cannot retroactively move a damage zone.
 
 ## Boundaries
 
-The game uses real 3D models and arenas with lane-based combat. Reality Breach composites the miniature 3D hero over live camera video; it does not reconstruct the room or provide furniture occlusion. The monster uses authored action animations rather than retargeting every body joint. Gesture thresholds need physical rehearsal. Accounts, persistent leaderboards, matchmaking, custom gesture training, narration, and production-scale anti-cheat are outside this release. No real-person demonstration recording is implied by the local build.
+The game uses real 3D models and arenas with free arena movement and combat. Reality Breach composites the miniature 3D hero over live camera video; it does not reconstruct the room or provide furniture occlusion. The monster uses authored action animations rather than retargeting every body joint. Gesture thresholds need physical rehearsal. Accounts, persistent leaderboards, matchmaking, custom gesture training, narration, and production-scale anti-cheat are outside this release. No real-person demonstration recording is implied by the local build.
 
 Original character/background art is authored as SVG, CSS, and Three.js mesh geometry and shaders. Fonts and runtime/model assets retain their respective licenses; see [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).
 

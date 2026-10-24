@@ -52,6 +52,27 @@ const ready = (socket: Socket) =>
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('audit: interrupted and repeated room actions', () => {
+  it('waits for both real player renderers before advancing the opening countdown', async () => {
+    const hero = await client(),
+      boss = await client();
+    const room = await create(hero);
+    await req(boss, 'room:join', { code: room.session.code });
+    await ready(hero);
+    await ready(boss);
+    expect((await req(hero, 'battle:start', { waitForRenderer: true })).ok).toBe(true);
+    await wait(200);
+    const state = server.rooms.get(room.session.code)!.state;
+    const clock = state.clock;
+    expect(state.renderPending).toBe(true);
+    await req(hero, 'battle:render-ready');
+    await wait(200);
+    expect(state.clock).toBe(clock);
+    await req(boss, 'battle:render-ready');
+    await wait(150);
+    expect(state.renderPending).toBe(false);
+    expect(state.clock).toBeGreaterThan(clock);
+    await req(hero, 'room:leave');
+  });
   it('restores a refreshed host lobby before the first boss joins', async () => {
     const hero = await client(),
       returning = await client(),

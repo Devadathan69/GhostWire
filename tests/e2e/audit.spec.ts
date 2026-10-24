@@ -104,6 +104,7 @@ test('camera denial can be retried with a synthetic device', async ({ page }) =>
 test('two players finish two matches with synchronized results and fresh replay readiness', async ({
   browser,
 }) => {
+  test.setTimeout(150000);
   const heroContext = await browser.newContext(),
     bossContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const hero = await heroContext.newPage(),
@@ -129,16 +130,18 @@ test('two players finish two matches with synchronized results and fresh replay 
       await ready(boss);
       await hero.getByRole('button', { name: 'Begin raid', exact: true }).click();
       await expect(hero.getByRole('button', { name: 'Strike', exact: true })).toBeEnabled();
-      for (let i = 0; i < 60; i++) {
-        if (
-          await hero.getByRole('heading', { name: 'Reality reclaimed.', exact: true }).isVisible()
-        )
-          break;
-        const strike = hero.getByRole('button', { name: 'Strike', exact: true });
-        const special = hero.getByRole('button', { name: 'Overdrive', exact: true });
-        if (await special.isEnabled()) await special.click();
-        else if (await strike.isEnabled()) await strike.click();
-        await hero.waitForTimeout(480);
+      for (let i = 0; i < 220; i++) {
+        const ui = await hero.evaluate(() => ({
+          done: !!document.querySelector('.result-card'),
+          strike: !document.querySelector<HTMLButtonElement>('button[aria-label="Strike"]')
+            ?.disabled,
+          special: !document.querySelector<HTMLButtonElement>('button[aria-label="Overdrive"]')
+            ?.disabled,
+        }));
+        if (ui.done) break;
+        if (ui.special) await hero.keyboard.press('Space');
+        else if (ui.strike) await hero.keyboard.press('j');
+        await hero.waitForTimeout(120);
       }
       await expect(
         hero.getByRole('heading', { name: 'Reality reclaimed.', exact: true }),

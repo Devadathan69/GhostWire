@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Camera, CameraOff, ScanLine, RotateCcw, Hand, ShieldCheck } from 'lucide-react';
-import type { Action, Role, Target } from '@ghostwire/shared';
+import type { Action, Movement, Role, Target } from '@ghostwire/shared';
 import { useTracking } from '../cv/useTracking';
 import type { useCamera } from '../cv/useCamera';
 
@@ -14,6 +14,7 @@ export function CameraPanel({
   onMotionChange,
   mode,
   onTrackingModeChange,
+  onMove,
 }: {
   camera: ReturnType<typeof useCamera>;
   role: Role;
@@ -24,8 +25,9 @@ export function CameraPanel({
   onMotionChange: (enabled: boolean) => void;
   mode: 'pose' | 'hand';
   onTrackingModeChange: (mode: 'pose' | 'hand') => void;
+  onMove: (value: Movement) => void;
 }) {
-  const tracker = useTracking(camera.stream, role, motion, mode, onAction, onTarget);
+  const tracker = useTracking(camera.stream, role, motion, mode, onAction, onTarget, onMove);
   useEffect(
     () => onMode(camera.stream && motion ? 'motion' : 'manual'),
     [camera.stream, motion, onMode],
@@ -66,16 +68,16 @@ export function CameraPanel({
               />{' '}
               Motion controls
             </label>
-            {role === 'boss' && (
+            {
               <select
                 aria-label="Tracking mode"
                 value={mode}
                 onChange={(e) => onTrackingModeChange(e.target.value as 'pose' | 'hand')}
               >
-                <option value="pose">Upper body</option>
+                <option value="pose">Body gestures</option>
                 <option value="hand">One hand</option>
               </select>
-            )}
+            }
           </div>
           <div className="button-pair">
             <button className="button subtle small" onClick={tracker.recalibrate}>
@@ -89,10 +91,12 @@ export function CameraPanel({
           </div>
           <p className="camera-tip">
             {mode === 'hand'
-              ? 'Hold an open palm to calibrate. Swipe to attack, pinch to charge, make a fist to guard.'
+              ? role === 'hero'
+                ? 'Open palm to calibrate. Swipe to strike, pinch for overdrive, fist to guard, point one index finger up to jump. Move an open palm away from its neutral center to walk.'
+                : 'Hold an open palm to calibrate. Swipe to attack, pinch to charge, make a fist to guard. Move your palm to aim during the breach.'
               : role === 'hero'
-                ? 'Keep shoulders and wrists visible. Extend an arm to punch, cross hands to guard, lower your shoulders to evade.'
-                : 'Keep shoulders and wrists visible. Extend an arm to swipe, raise both hands to charge, cross hands to guard.'}{' '}
+                ? 'Punch to strike; cross hands to guard; duck to evade. Hold both hands high for overdrive, one hand high to jump, or lift one knee to kick. Lean left/right to move; step closer/farther to advance/retreat.'
+                : 'Lean left/right and step closer/farther to walk in the arena. Extend an arm to swipe, hold both hands high for power, or cross hands to guard. Your wrist aims in Reality Breach.'}{' '}
             Small, comfortable movements work best.
           </p>
         </>

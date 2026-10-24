@@ -8,11 +8,13 @@ export function GameStage({
   stream,
   onAim,
   role,
+  onReady,
 }: {
   state: BattleState;
   stream: MediaStream | null;
   onAim?: (t: Target) => void;
   role: 'hero' | 'boss';
+  onReady: () => void;
 }) {
   const mount = useRef<HTMLDivElement>(null),
     video = useRef<HTMLVideoElement>(null),
@@ -26,7 +28,7 @@ export function GameStage({
   useEffect(() => {
     let battle: BattleScene;
     try {
-      battle = new BattleScene(mount.current!, latest.current, setRenderError);
+      battle = new BattleScene(mount.current!, latest.current, setRenderError, onReady);
       scene.current = battle;
       setRenderError(null);
     } catch {
@@ -76,12 +78,24 @@ export function GameStage({
         onAim({
           x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
           y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)),
+          ...(state.phase === 'ARENA'
+            ? {
+                world: scene.current?.aimGround({
+                  x: (e.clientX - r.left) / r.width,
+                  y: (e.clientY - r.top) / r.height,
+                }),
+              }
+            : {}),
         });
       }}
       onPointerDown={(e) => {
         if (role !== 'boss' || !onAim) return;
         const r = e.currentTarget.getBoundingClientRect();
-        onAim({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
+        const point = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+        onAim({
+          ...point,
+          ...(state.phase === 'ARENA' ? { world: scene.current?.aimGround(point) } : {}),
+        });
       }}
     >
       <video
@@ -141,7 +155,9 @@ export function GameStage({
       )}
       {state.phase === 'INTRO' && (
         <div className="cinematic-overlay">
-          <span className="eyebrow">ANOMALY DETECTED</span>
+          <span className="eyebrow">
+            {state.renderPending ? 'PREPARING BOTH 3D VIEWS…' : 'ANOMALY DETECTED'}
+          </span>
           <h2>{state.spec.bossName}</h2>
           <p>“{state.spec.introLine}”</p>
           <div className="intro-line" />

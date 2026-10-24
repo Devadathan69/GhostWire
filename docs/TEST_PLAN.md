@@ -8,7 +8,7 @@
 - A single threshold breach, queue cancellation during transition, phase freeze while disconnected, preserved attack deadlines after resume, targeted collision and misses.
 - Three valid presets; rejected unsupported mechanics, out-of-range health and invalid asset values.
 - Mirrored widescreen coordinates, portrait/4:3 cover cropping, preserved camera center.
-- Perspective projection of all three hero lanes in both combat phases, at both 3D camera angles and desktop/mobile stage sizes.
+- Perspective projection of authoritative screen anchors and free world positions, at both 3D camera angles and desktop/mobile stage sizes.
 - Neutral calibration, required landmark confidence, missing tracking, one punch per extension, held guard and duck.
 - Real socket connections: one boss slot, private-token resume, wrong-token denial, host-only starts, shared health, and signaling isolation.
 - AI success, no-key fallback, refusal, incomplete responses, schema-invalid output, unsupported actions and upstream errors. The API is mocked in these tests; these are not live model calls.
@@ -19,7 +19,7 @@
 2. Hero and mobile-sized boss in independent contexts. Join link, actual camera acquisition using a synthetic device, MediaPipe loading, shared damage, browser reload/resume, real WebRTC transfer, video-backed breach, aimed strike damage, keyboard after touch, stop-camera cleanup, and leave propagation.
 3. Narrow mobile layout, a contrasting shadow encounter, denied-camera messaging, and continued manual gameplay.
 4. A passive hero genuinely loses; combat controls disappear at zero health.
-5. The Tempest 3D arena changes perspective while retaining authoritative lane coordinates; a simulated WebGL context loss shows a recovery message, restoration resumes rendering, and leaving removes the canvas. The existing audit scenarios additionally cover camera cancellation/retry and two complete two-player matches with replay readiness.
+5. The Tempest 3D arena changes perspective while retaining authoritative world positions; a simulated WebGL context loss shows a recovery message, restoration resumes rendering, and leaving removes the canvas. The existing audit scenarios additionally cover camera cancellation/retry and two complete two-player matches with replay readiness.
 
 Screenshots are generated in `docs/screenshots/`. `breach-synthetic-camera.png` and camera-bearing boss screenshots contain Chromium's synthetic live source, not footage of a person. Traces and temporary browser recordings remain ignored in `test-results/`.
 

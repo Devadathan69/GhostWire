@@ -8,6 +8,7 @@ import { z } from 'zod';
 import {
   IntentSchema,
   TargetSchema,
+  MovementSchema,
   isCombat,
   heroPosition,
   type Ack,
@@ -15,7 +16,7 @@ import {
   type Role,
   type Session,
 } from '@ghostwire/shared';
-import { applyIntent, createState, startBattle, tickBattle } from './combatEngine';
+import { applyIntent, applyMovement, createState, startBattle, tickBattle } from './combatEngine';
 import { directBattle, type Encounter } from './battleDirector';
 
 type Room = {
@@ -311,18 +312,42 @@ export function makeServer() {
       broadcast(m.room);
       reply({ ok: true, data: null });
     });
-    on('battle:start', (_raw, reply) => {
+    on('battle:start', (raw, reply) => {
       const m = member();
       if (!m || m.role !== 'hero') {
         fail(reply, 'Only the hero can begin the raid.');
         return;
       }
-      const error = startBattle(m.room.state);
+      const options = z
+        .object({ waitForRenderer: z.boolean().optional() })
+        .strict()
+        .safeParse(raw ?? {});
+      if (!options.success) {
+        fail(reply, 'Invalid raid setup.');
+        return;
+      }
+      const error = startBattle(m.room.state, options.data.waitForRenderer ?? false);
       if (error) fail(reply, error);
       else {
         broadcast(m.room);
         reply({ ok: true, data: null });
       }
+    });
+    on('battle:render-ready', (_raw, reply) => {
+      const m = member();
+      if (!m) {
+        fail(reply, 'Join a room first.');
+        return;
+      }
+      const s = m.room.state;
+      s.renderReady[m.role] = true;
+      if (s.renderPending && s.renderReady.hero && s.renderReady.boss) {
+        s.renderPending = false;
+        s.renderDeadline = null;
+        s.phaseAt = s.clock;
+        broadcast(m.room);
+      }
+      reply({ ok: true, data: null });
     });
     on('battle:rematch', (_raw, reply) => {
       const m = member();
@@ -366,6 +391,24 @@ export function makeServer() {
         }
       },
       30,
+    );
+    on(
+      'fighter:move',
+      (raw, reply) => {
+        const m = member(),
+          parsed = MovementSchema.safeParse(raw);
+        if (!m || !parsed.success) {
+          fail(reply, 'Invalid movement.');
+          return;
+        }
+        const error = applyMovement(m.room.state, m.role, parsed.data);
+        if (error) fail(reply, error);
+        else {
+          m.room.touched = Date.now();
+          reply({ ok: true, data: null });
+        }
+      },
+      20,
     );
     on(
       'boss:target',
@@ -445,6 +488,8 @@ export function makeServer() {
       delete m.room.sockets[m.role];
       s.players[m.role].connected = false;
       s.players[m.role].camera = false;
+      for (const role of ['hero', 'boss'] as const)
+        s.fighters[role].movement = { x: 0, z: 0, sprint: false };
       s.reconnectUntil ??= Date.now() + 30000;
       if (!['VICTORY', 'DEFEAT', 'DISCONNECTED'].includes(s.phase)) {
         s.resumePhase = s.phase;
@@ -464,17 +509,36 @@ export function makeServer() {
         closeRoom(code, 'Reconnect window expired. Start a fresh raid.');
         continue;
       }
+      if (s.renderPending && s.renderDeadline && now > s.renderDeadline) {
+        closeRoom(
+          code,
+          'The 3D views did not finish loading. Reopen the raid in a WebGL 2 browser.',
+        );
+        continue;
+      }
       if (now - room.touched > 30 * 60000) {
         closeRoom(code, 'This room expired after 30 minutes of inactivity.');
         continue;
       }
       tickBattle(s, dt);
+      if (s.practice && s.phase === 'ARENA') {
+        const h = s.fighters.hero.position,
+          b = s.fighters.boss.position,
+          distance = Math.hypot(h.x - b.x, h.z - b.z);
+        applyMovement(
+          s,
+          'boss',
+          distance > 3.5
+            ? { x: (h.x - b.x) / distance, z: (h.z - b.z) / distance, sprint: false }
+            : { x: 0, z: 0, sprint: false },
+        );
+      }
       if (s.practice && isCombat(s.phase) && s.clock >= room.nextBotAt) {
         room.botTurn++;
         const action =
           room.botTurn % 5 === 0 ? 'guard' : room.botTurn % 3 === 0 ? 'power' : 'swipe';
         applyIntent(s, 'boss', action, heroPosition(s));
-        room.nextBotAt = s.clock + (action === 'guard' ? 1600 : 2400);
+        room.nextBotAt = s.clock + (action === 'guard' ? 1800 : 3200);
       }
       broadcast(room);
     }

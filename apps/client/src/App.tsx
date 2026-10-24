@@ -37,6 +37,8 @@ import { CameraPanel } from './components/CameraPanel';
 import { Controls } from './components/Controls';
 import { GameStage } from './components/GameStage';
 import { Result } from './components/Result';
+import { ControlsGuide } from './components/ControlsGuide';
+import { useMovement } from './game/useMovement';
 import { audioEnabled, setAudio, unlockAudio } from './game/audio';
 
 const prompts: Record<string, string> = {
@@ -177,6 +179,17 @@ export default function App() {
     },
     [net.intent],
   );
+  const movement = useMovement(
+    Boolean(
+      session &&
+      state &&
+      isCombat(state.phase) &&
+      net.connected &&
+      !help &&
+      !(session.role === 'boss' && state.phase === 'REALITY'),
+    ),
+    net.move,
+  );
   useEffect(() => {
     if (!session || !state || !isCombat(state.phase)) return;
     const key = (e: KeyboardEvent) => {
@@ -188,10 +201,8 @@ export default function App() {
               k: 'guard',
               l: 'dodge',
               ' ': 'special',
-              a: 'left',
-              d: 'right',
-              ArrowLeft: 'left',
-              ArrowRight: 'right',
+              e: 'jump',
+              i: 'kick',
             }
           : { j: 'swipe', k: 'guard', ' ': 'power' };
       const a = keys[e.key] || keys[e.key.toLowerCase()];
@@ -761,7 +772,7 @@ export default function App() {
                       className="button primary full begin-button"
                       onClick={() => {
                         unlockAudio();
-                        void perform(() => request('battle:start'));
+                        void perform(() => request('battle:start', { waitForRenderer: true }));
                       }}
                       disabled={
                         !net.connected || !state.players.hero.ready || !state.players.boss.ready
@@ -787,6 +798,7 @@ export default function App() {
                     (session.role === 'boss' && window.innerWidth < 700 ? 'hand' : 'pose')
                   }
                   onTrackingModeChange={setTrackingMode}
+                  onMove={movement.onMotion}
                 />
               </div>
             </div>
@@ -800,6 +812,9 @@ export default function App() {
                     role={session.role}
                     stream={session.role === 'boss' ? camera.stream : peer.remote}
                     onAim={net.aim}
+                    onReady={() => {
+                      void request('battle:render-ready').catch(() => {});
+                    }}
                   />
                   {finished ? (
                     <Result
@@ -814,6 +829,7 @@ export default function App() {
                       role={session.role}
                       onAction={onAction}
                       connected={net.connected}
+                      onMove={movement.onTouch}
                     />
                   )}
                 </div>
@@ -856,6 +872,7 @@ export default function App() {
                       (session.role === 'boss' && window.innerWidth < 700 ? 'hand' : 'pose')
                     }
                     onTrackingModeChange={setTrackingMode}
+                    onMove={movement.onMotion}
                   />
                   {!state.practice && (
                     <div className="peer-status">
@@ -914,7 +931,8 @@ export default function App() {
               <li>
                 <strong>Play the hero.</strong>
                 <kbd>J</kbd> strike, <kbd>K</kbd> guard, <kbd>L</kbd> evade, <kbd>Space</kbd>{' '}
-                overdrive, <kbd>A</kbd>/<kbd>D</kbd> change lane.
+                overdrive, <kbd>I</kbd> kick, <kbd>E</kbd> jump. Hold <kbd>WASD</kbd> or arrows to
+                walk and <kbd>Shift</kbd> to run.
               </li>
               <li>
                 <strong>Be the boss.</strong>
@@ -926,6 +944,7 @@ export default function App() {
                 boss camera, the room becomes the backdrop. Aim your hand or pointer, then attack.
               </li>
             </ol>
+            <ControlsGuide />
             <p>
               Attack zones lock when a move starts. Time your defense before the ring fills. Boss
               armor is weaker just after an attack.

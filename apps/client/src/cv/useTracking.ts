@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { cameraToStage, type Action, type Role, type Target } from '@ghostwire/shared';
+import {
+  cameraToStage,
+  type Action,
+  type Movement,
+  type Role,
+  type Target,
+} from '@ghostwire/shared';
 import { GestureClassifier, type Landmark } from './gestures';
 
 export function useTracking(
@@ -9,12 +15,13 @@ export function useTracking(
   mode: 'pose' | 'hand',
   onAction: (a: Action) => void,
   onTarget: (t: Target) => void,
+  onMove: (value: Movement) => void,
 ) {
   const video = useRef<HTMLVideoElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
   const classifier = useRef(new GestureClassifier());
-  const callbacks = useRef({ onAction, onTarget });
-  callbacks.current = { onAction, onTarget };
+  const callbacks = useRef({ onAction, onTarget, onMove });
+  callbacks.current = { onAction, onTarget, onMove };
   const [status, setStatus] = useState('Camera off');
   const [calibrated, setCalibrated] = useState(false);
   const [gesture, setGesture] = useState('Neutral');
@@ -34,6 +41,7 @@ export function useTracking(
     const ctx = overlay.current?.getContext('2d');
     ctx?.clearRect(0, 0, 640, 480);
     if (!stream || !enabled) {
+      callbacks.current.onMove({ x: 0, z: 0, sprint: false });
       setStatus(stream ? 'Camera on · manual controls' : 'Camera off');
       return;
     }
@@ -91,6 +99,11 @@ export function useTracking(
                 mode,
               );
               setCalibrated(reading.calibrated);
+              callbacks.current.onMove(
+                reading.calibrated && reading.confidence >= 0.55
+                  ? (reading.movement ?? { x: 0, z: 0, sprint: false })
+                  : { x: 0, z: 0, sprint: false },
+              );
               setStatus(
                 reading.confidence < 0.55
                   ? 'Tracking lost · stay in frame'
@@ -169,6 +182,7 @@ export function useTracking(
             }
             timer = setTimeout(loop, 67);
           } catch {
+            callbacks.current.onMove({ x: 0, z: 0, sprint: false });
             setStatus('Tracking unavailable · use manual controls');
             detector.close();
             detector = null;
@@ -183,6 +197,7 @@ export function useTracking(
       disposed = true;
       if (timer) clearTimeout(timer);
       detector?.close();
+      callbacks.current.onMove({ x: 0, z: 0, sprint: false });
     };
   }, [stream, role, enabled, mode, reset]);
   return { video, overlay, status, calibrated, gesture, recalibrate: () => setReset((n) => n + 1) };

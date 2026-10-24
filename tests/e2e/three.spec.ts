@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('3D Tempest arena preserves lanes across perspective changes and recovers graphics', async ({
+test('3D Tempest arena preserves world positions across perspective changes and recovers graphics', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -17,11 +17,11 @@ test('3D Tempest arena preserves lanes across perspective changes and recovers g
   await expect(canvas).toHaveAttribute('data-ready', 'true');
   await expect(page.getByRole('button', { name: 'Move left', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Move left', exact: true }).click();
-  await expect(canvas).toHaveAttribute('data-hero-anchor', '0.210,0.790');
+  await expect(canvas).toHaveAttribute('data-hero-world', '-2.25,1.40');
   await page.getByRole('button', { name: 'Switch to overlook view', exact: true }).click();
   await page.getByRole('button', { name: 'Guard', exact: true }).click();
   await page.getByRole('button', { name: 'Move right', exact: true }).click();
-  await expect(canvas).toHaveAttribute('data-hero-anchor', '0.345,0.790');
+  await expect(canvas).toHaveAttribute('data-hero-world', '-1.60,1.40');
   await page.screenshot({ path: 'docs/screenshots/arena-3d-overlook.png', fullPage: true });
   await canvas.evaluate((element) => {
     const extension = (element as HTMLCanvasElement)
@@ -38,7 +38,7 @@ test('3D Tempest arena preserves lanes across perspective changes and recovers g
   );
   await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(canvas).toHaveAttribute('data-ready', 'true');
-  await expect(canvas).toHaveAttribute('data-hero-anchor', '0.345,0.790');
+  await expect(canvas).toHaveAttribute('data-hero-world', '-1.60,1.40');
   await page.getByRole('button', { name: 'Leave raid', exact: true }).click();
   await expect(canvas).toHaveCount(0);
   expect(errors).toEqual([]);

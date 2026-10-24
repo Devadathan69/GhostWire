@@ -84,11 +84,31 @@ export const ActionSchema = z.enum([
   'right',
   'swipe',
   'power',
+  'forward',
+  'back',
+  'jump',
+  'kick',
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 export type Role = 'hero' | 'boss';
+export const WorldPositionSchema = z
+  .object({ x: z.number().finite().min(-20).max(20), z: z.number().finite().min(-20).max(20) })
+  .strict();
+export type WorldPosition = z.infer<typeof WorldPositionSchema>;
+export const MovementSchema = z
+  .object({
+    x: z.number().finite().min(-1).max(1),
+    z: z.number().finite().min(-1).max(1),
+    sprint: z.boolean(),
+  })
+  .strict();
+export type Movement = z.infer<typeof MovementSchema>;
 export const TargetSchema = z
-  .object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
+  .object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+    world: WorldPositionSchema.optional(),
+  })
   .strict();
 export type Target = z.infer<typeof TargetSchema>;
 export const IntentSchema = z
@@ -107,7 +127,15 @@ export const COOLDOWNS: Record<Action, number> = {
   right: 200,
   swipe: 1800,
   power: 3600,
+  forward: 180,
+  back: 180,
+  jump: 1400,
+  kick: 950,
 };
+export const ARENA_RADIUS = 6.25;
+export const WALK_SPEED = { hero: 3.4, boss: 2.25 };
+export const MELEE_RANGE = { punch: 4.3, kick: 3.8 };
+export type FighterState = { position: WorldPosition; movement: Movement; moveAt: number };
 export const ATTACKS = {
   claw_sweep: { name: 'Claw sweep', damage: 10, warning: 800, radius: 0.27 },
   fire_orb: { name: 'Ember fall', damage: 16, warning: 1150, radius: 0.22 },
@@ -137,6 +165,7 @@ export type HitEvent = {
   action: string;
   damage: number;
   label: string;
+  move?: Action;
 };
 export type PendingAttack = {
   id: number;
@@ -148,6 +177,7 @@ export type PendingAttack = {
   damage: number;
   target: Target;
   radius: number;
+  worldTarget?: WorldPosition;
 };
 export type BattleState = {
   code: string;
@@ -163,6 +193,9 @@ export type BattleState = {
   heroHp: number;
   bossHp: number;
   heroLane: number;
+  fighters: Record<Role, FighterState>;
+  heroScreen: Target;
+  jumpUntil: number;
   bossTarget: Target;
   heroGuardUntil: number;
   bossGuardUntil: number;
@@ -175,6 +208,9 @@ export type BattleState = {
   elapsed: number;
   stats: { damage: number; blocked: number; dodged: number; strikes: number };
   reconnectUntil: number | null;
+  renderPending: boolean;
+  renderReady: Record<Role, boolean>;
+  renderDeadline: number | null;
 };
 export type Session = { code: string; role: Role; token: string };
 export type Ack<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
@@ -185,8 +221,12 @@ export type Signal = {
   candidate?: RTCIceCandidateInit;
   generation?: string;
 };
-export function heroPosition(s: Pick<BattleState, 'phase' | 'resumePhase' | 'heroLane'>): Target {
+export function heroPosition(
+  s: Pick<BattleState, 'phase' | 'resumePhase' | 'heroLane'> &
+    Partial<Pick<BattleState, 'heroScreen'>>,
+): Target {
   const phase = s.phase === 'DISCONNECTED' ? s.resumePhase : s.phase;
+  if (phase === 'REALITY' && s.heroScreen) return s.heroScreen;
   return { x: phase === 'REALITY' ? 0.25 + s.heroLane * 0.25 : 0.21 + s.heroLane * 0.135, y: 0.79 };
 }
 export function isCombat(phase: Phase) {

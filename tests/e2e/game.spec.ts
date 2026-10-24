@@ -55,6 +55,7 @@ test('training match: real controls, breach, victory, recap and rematch', async 
   await expect(
     page.getByRole('heading', { name: 'Reality reclaimed.', exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Mission passed', exact: true })).toBeVisible();
   await page.screenshot({ path: 'docs/screenshots/victory-desktop.png', fullPage: true });
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save recap', exact: true }).click();
@@ -185,6 +186,7 @@ test('a non-defending hero loses and combat stops at zero health', async ({ page
     timeout: 50000,
   });
   await expect(page.getByTestId('hero-hp')).toHaveText('0 / 100');
+  await expect(page.getByRole('status', { name: 'Mission failed', exact: true })).toBeVisible();
   await page.screenshot({ path: 'docs/screenshots/defeat-desktop.png', fullPage: true });
   await expect(page.getByRole('button', { name: 'Strike', exact: true })).toHaveCount(0);
 });

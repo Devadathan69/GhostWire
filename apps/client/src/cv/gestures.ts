@@ -1,4 +1,4 @@
-import type { Action, Role, Target } from '@ghostwire/shared';
+import { COOLDOWNS, type Action, type Movement, type Role, type Target } from '@ghostwire/shared';
 export type Landmark = { x: number; y: number; z?: number; visibility?: number };
 export type Reading = {
   action?: Action;
@@ -7,6 +7,7 @@ export type Reading = {
   calibrated: boolean;
   progress: number;
   landmarks: Landmark[];
+  movement?: Movement;
 };
 const dist = (a: Landmark, b: Landmark) => Math.hypot(a.x - b.x, a.y - b.y);
 export class GestureClassifier {
@@ -16,7 +17,7 @@ export class GestureClassifier {
   private neutral: { y: number; x: number; width: number } | null = null;
   private held = '';
   private heldAt = 0;
-  private lastEmit = -10000;
+  private emissions = new Map<string, number>();
   private extended = false;
   reset() {
     this.previous = [];
@@ -25,7 +26,7 @@ export class GestureClassifier {
     this.held = '';
     this.extended = false;
     this.previousAt = 0;
-    this.lastEmit = -10000;
+    this.emissions.clear();
   }
   read(raw: Landmark[], now: number, role: Role, mode: 'pose' | 'hand' = 'pose'): Reading {
     const required = mode === 'pose' ? [0, 11, 12, 13, 14, 15, 16] : [0, 4, 8, 9, 12, 16, 20];
@@ -51,6 +52,11 @@ export class GestureClassifier {
     const dt = Math.max(0.03, Math.min(0.2, (now - this.previousAt) / 1000));
     let candidate = '',
       target: Target | undefined;
+    let movement: Movement = { x: 0, z: 0, sprint: false };
+    const axis = (value: number, dead = 0.2) =>
+      Math.abs(value) < dead
+        ? 0
+        : Math.max(-1, Math.min(1, Math.sign(value) * (Math.abs(value) - dead) * 1.8));
     if (mode === 'hand') {
       const size = Math.max(0.05, dist(points[0], points[9]));
       target = { x: points[9].x, y: points[9].y };
@@ -63,9 +69,17 @@ export class GestureClassifier {
         ).length;
         const pinch = dist(points[4], points[8]) / size;
         const speed = this.previous[9] ? Math.abs(points[9].x - this.previous[9].x) / dt / size : 0;
-        if (folded >= 3) candidate = 'guard';
-        else if (pinch < 0.25) candidate = 'power';
-        else if (speed > 2.6) candidate = 'swipe';
+        const indexUp = dist(points[8], points[0]) > dist(points[6], points[0]) * 1.2;
+        if (role === 'hero' && folded === 3 && indexUp) candidate = 'jump';
+        else if (folded >= 3) candidate = 'guard';
+        else if (pinch < 0.25) candidate = role === 'hero' ? 'special' : 'power';
+        else if (speed > 2.6) candidate = role === 'hero' ? 'punch' : 'swipe';
+        if (role === 'hero' && !candidate)
+          movement = {
+            x: axis((this.neutral.x - target.x) / size, 0.65),
+            z: axis((target.y - this.neutral.y) / size, 0.65),
+            sprint: false,
+          };
       }
     } else {
       const [ls, rs, lw, rw] = [points[11], points[12], points[15], points[16]];
@@ -91,15 +105,39 @@ export class GestureClassifier {
           ? Math.max(dist(rw, this.previous[16]), dist(lw, this.previous[15])) / dt / width
           : 0;
         const reach = Math.max(dist(lw, ls), dist(rw, rs)) / width;
-        if (role === 'boss' && raised) candidate = 'power';
+        const oneRaised =
+          (lw.y < ls.y - width * 0.65 && rw.y > rs.y + width * 0.25) ||
+          (rw.y < rs.y - width * 0.65 && lw.y > ls.y + width * 0.25);
+        const kneeUp = [
+          [23, 25],
+          [24, 26],
+        ].some(
+          ([hip, knee]) =>
+            points[hip] &&
+            points[knee] &&
+            (points[hip].visibility ?? 1) >= 0.65 &&
+            (points[knee].visibility ?? 1) >= 0.65 &&
+            points[knee].y < points[hip].y - width * 0.18,
+        );
+        if (raised) candidate = role === 'hero' ? 'special' : 'power';
         else if (guard) candidate = 'guard';
         else if (role === 'hero' && y - this.neutral.y > this.neutral.width * 0.3)
           candidate = 'dodge';
+        else if (role === 'hero' && kneeUp) candidate = 'kick';
+        else if (role === 'hero' && oneRaised) candidate = 'jump';
         else if (reach > 1.45 && speed > 1.5 && !this.extended) {
           candidate = role === 'hero' ? 'punch' : 'swipe';
           this.extended = true;
         }
         if (reach < 1.15) this.extended = false;
+        const widthRatio = width / this.neutral.width;
+        movement = {
+          x: axis((this.neutral.x - x) / this.neutral.width),
+          z: axis((1 - widthRatio) * 3.5, 0.3),
+          sprint: widthRatio > 1.32,
+        };
+        if (candidate === 'dodge' || candidate === 'kick' || candidate === 'jump')
+          movement = { x: movement.x, z: 0, sprint: false };
       }
     }
     this.previous = points;
@@ -110,17 +148,15 @@ export class GestureClassifier {
       this.heldAt = now;
     }
     const instant = ['punch', 'swipe'].includes(candidate);
-    const cooldown =
-      candidate === 'guard'
-        ? 1500
-        : candidate === 'power'
-          ? 3600
-          : candidate === 'dodge'
-            ? 1700
-            : 650;
-    if (candidate && (instant || now - this.heldAt >= 220) && now - this.lastEmit >= cooldown) {
+    const cooldown = candidate ? COOLDOWNS[candidate as Action] : 650;
+    const hold = candidate === 'special' || candidate === 'power' ? 450 : 220;
+    if (
+      candidate &&
+      (instant || now - this.heldAt >= hold) &&
+      now - (this.emissions.get(candidate) ?? -10000) >= cooldown
+    ) {
       action = candidate as Action;
-      this.lastEmit = now;
+      this.emissions.set(candidate, now);
     }
     return {
       action,
@@ -129,6 +165,7 @@ export class GestureClassifier {
       calibrated: !!this.neutral,
       progress: Math.min(1, this.samples.length / 20),
       landmarks: points,
+      movement,
     };
   }
 }

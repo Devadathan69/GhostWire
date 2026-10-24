@@ -1,10 +1,20 @@
-import { ArrowLeft, ArrowRight, Flame, Shield, Swords, Wind, Zap } from 'lucide-react';
-import { COOLDOWNS, isCombat, type Action, type BattleState, type Role } from '@ghostwire/shared';
+import { ArrowRight, Flame, Shield, Swords, Wind, Zap } from 'lucide-react';
+import {
+  COOLDOWNS,
+  isCombat,
+  type Action,
+  type BattleState,
+  type Role,
+  type Movement,
+} from '@ghostwire/shared';
+import { MovementPad } from './MovementPad';
 const heroMoves = [
   { action: 'punch', name: 'Strike', key: 'J', icon: Swords, detail: 'Extend arm' },
   { action: 'guard', name: 'Guard', key: 'K', icon: Shield, detail: 'Cross hands' },
   { action: 'dodge', name: 'Evade', key: 'L', icon: Wind, detail: 'Duck slightly' },
   { action: 'special', name: 'Overdrive', key: 'SPACE', icon: Zap, detail: '8 second charge' },
+  { action: 'kick', name: 'Kick', key: 'I', icon: ArrowRight, detail: 'Lift one knee' },
+  { action: 'jump', name: 'Jump', key: 'E', icon: Wind, detail: 'One hand above head' },
 ] as const;
 const bossMoves = [
   { action: 'swipe', name: 'Swipe', key: 'J', icon: Swords, detail: 'Extend arm' },
@@ -16,11 +26,13 @@ export function Controls({
   role,
   onAction,
   connected,
+  onMove,
 }: {
   state: BattleState;
   role: Role;
   onAction: (a: Action) => void;
   connected: boolean;
+  onMove: (value: Movement) => void;
 }) {
   const active = isCombat(state.phase) && connected;
   return (
@@ -55,29 +67,10 @@ export function Controls({
           );
         })}
       </div>
-      {role === 'hero' ? (
-        <div className="movement-controls">
-          <span>Change lane to escape targeted attacks</span>
-          <button
-            className="key-button"
-            aria-label="Move left"
-            onClick={() => onAction('left')}
-            disabled={!active}
-          >
-            <ArrowLeft size={14} />
-            <kbd>A</kbd>
-          </button>
-          <button
-            className="key-button"
-            aria-label="Move right"
-            onClick={() => onAction('right')}
-            disabled={!active}
-          >
-            <kbd>D</kbd>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      ) : (
+      {(role === 'hero' || state.phase !== 'REALITY') && (
+        <MovementPad disabled={!active} onMove={onMove} onStep={onAction} />
+      )}
+      {role === 'boss' && (
         <p className="boss-aim-tip">
           In Reality Breach, move your hand or touch the arena to aim, then strike.
         </p>

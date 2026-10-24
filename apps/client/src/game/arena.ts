@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import type { BattleSpec } from '@ghostwire/shared';
 import { batchRigidMeshes, link, luminous, material, mesh } from './geometry';
+import { surface } from './surfaces';
 
 export function createArena(spec: BattleSpec) {
   const root = new THREE.Group(),
     portal = new THREE.Group(),
     debris = new THREE.Group();
-  const stone = material('#26333e', 0.3, 0.9),
-    trim = material('#46535d', 0.65, 0.55);
+  const stone = surface('#55534c', 0.08, 0.94, 81),
+    trim = surface('#716b58', 0.62, 0.5, 71);
   const glow = luminous(spec.secondaryColor, 1.6),
     pale = luminous(spec.primaryColor, 1.4);
   const floor = mesh(root, new THREE.CylinderGeometry(7.7, 7.2, 0.65, 64), stone, [0, -0.4, 0]);
@@ -92,7 +93,16 @@ export function createArena(spec: BattleSpec) {
     block.rotation.z = -a;
   }
   // Silhouettes at several depths establish scale and parallax without remote assets.
-  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+  const rockGeo = new THREE.SphereGeometry(1, 20, 16);
+  const rockVertices = rockGeo.getAttribute('position');
+  for (let i = 0; i < rockVertices.count; i++) {
+    const x = rockVertices.getX(i),
+      y = rockVertices.getY(i),
+      z = rockVertices.getZ(i);
+    const rough = 1 + Math.sin(x * 12 + y * 8 + z * 3) * 0.1 + Math.cos(z * 11 - x * 7) * 0.07;
+    rockVertices.setXYZ(i, x * rough, y * rough, z * rough);
+  }
+  rockGeo.computeVertexNormals();
   for (let i = 0; i < 22; i++) {
     const a = i * 2.39996,
       radius = 10 + (i % 5) * 2.2;
@@ -137,6 +147,56 @@ export function createArena(spec: BattleSpec) {
       rock.scale.y *= 0.3;
     }
   }
+  const fire = new THREE.ShaderMaterial({
+    uniforms: {
+      time: vortex.uniforms.time,
+      tint: {
+        value: new THREE.Color(
+          spec.arena === 'shadow_forest'
+            ? '#af8de1'
+            : spec.arena === 'storm'
+              ? '#7fcded'
+              : '#ff9a36',
+        ),
+      },
+    },
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    vertexShader: `uniform float time;varying vec2 v;void main(){v=uv;vec3 p=position;p.x+=sin(p.y*7.0+time*6.0)*.07*(p.y+.5);gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}`,
+    fragmentShader: `uniform vec3 tint;uniform float time;varying vec2 v;void main(){float edge=1.0-abs(v.x-.5)*2.0;float a=pow(max(0.0,edge),1.3)*(1.0-v.y);float flicker=.8+.2*sin(time*13.0+v.y*9.0);gl_FragColor=vec4(tint*(1.3+v.y),a*flicker);}`,
+  });
+  for (const x of [-5.3, 5.3]) {
+    for (const z of [-3.3, 2.6]) {
+      mesh(root, new THREE.CylinderGeometry(0.27, 0.42, 1.2, 16), stone, [x, 0.6, z]);
+      mesh(root, new THREE.CylinderGeometry(0.46, 0.24, 0.24, 20), trim, [x, 1.24, z]);
+      const flame = mesh(root, new THREE.PlaneGeometry(0.65, 1.05, 4, 8), fire, [x, 1.85, z]);
+      flame.castShadow = false;
+      const cross = mesh(root, new THREE.PlaneGeometry(0.65, 1.05, 4, 8), fire, [x, 1.85, z]);
+      cross.rotation.y = Math.PI / 2;
+      cross.castShadow = false;
+    }
+  }
+  for (const x of [-5.9, 5.9]) {
+    const pillar = mesh(root, new THREE.CylinderGeometry(0.38, 0.5, 4.2, 18), stone, [
+      x,
+      2.1,
+      -4.8,
+    ]);
+    pillar.rotation.z = x * 0.007;
+    for (const y of [0.2, 3.95])
+      mesh(root, new THREE.CylinderGeometry(0.65, 0.65, 0.25, 18), trim, [x, y, -4.8]);
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      link(
+        root,
+        new THREE.Vector3(x + Math.sin(angle) * 0.44, 0.4, -4.8 + Math.cos(angle) * 0.44),
+        new THREE.Vector3(x + Math.sin(angle) * 0.36, 3.7, -4.8 + Math.cos(angle) * 0.36),
+        0.025,
+        trim,
+      );
+    }
+  }
   root.add(debris);
   for (let i = 0; i < 13; i++) {
     const a = i * 2.4;
@@ -168,7 +228,10 @@ export function createArena(spec: BattleSpec) {
     }),
   );
   root.add(stars);
-  batchRigidMeshes(root);
+  batchRigidMeshes(
+    root,
+    root.children.filter((object) => object instanceof THREE.Mesh && object.material === fire),
+  );
   batchRigidMeshes(portal, [veil]);
   batchRigidMeshes(inner);
   return { root, portal, inner, debris, stars, vortex };
