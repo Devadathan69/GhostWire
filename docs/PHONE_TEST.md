@@ -28,16 +28,16 @@ The link is a temporary public test address: people with the address can open th
 1. Start with the phone and laptop on the same Wi-Fi. Scan the lobby QR using your phone's camera and open the link in Chrome on Android or Safari on iPhone. Avoid a messaging app's embedded browser.
 2. Tap **Possess the boss**. Tap **Enable camera** and allow camera access. No microphone permission is requested.
 3. The narrow-screen default is **One hand** mode. Hold an open palm still until calibration completes. Move the open hand sideways to swipe; pinch thumb and index finger to charge; close your fist to guard.
-4. For upper-body gestures instead, select **Upper body**. Place the phone on a stable support and keep shoulders and wrists visible. Extend an arm to swipe, raise both hands to power attack, or cross hands to guard.
+4. For body gestures instead, select **Body gestures**. Place the phone on a stable support and keep shoulders and wrists visible. Extend an arm quickly to swipe, hold both hands above the head for half a second to power attack, or cross wrists near the chest for a quarter second to guard. The full hero/boss controls and cooldowns are in [CONTROLS.md](CONTROLS.md) and **How to play**.
 5. Keep **Motion controls** checked, then tap **I'm ready**. Keep the browser visible and the phone awake during play.
 
 ## Verify the signature moment
 
-- The hero can use J to strike, K to guard, L to evade, Space for Overdrive, and A/D to move. Touch controls work on both devices.
+- The hero uses WASD/arrows to walk, Shift to run, J to strike, I to kick, K to guard, L to evade, E to jump, and Space for Overdrive. Touch has the joystick, RUN, and all six actions. Move closer before melee attacks.
 - Check that a deliberate boss gesture triggers a monster attack on the laptop and updates the same health values on both devices.
 - Reduce the boss to **50% health**. The arena fractures and switches to the boss's live feed. Look for **LIVE · BOSS CAMERA** on the hero's screen.
 - In Reality Breach, move your hand to aim the ring at the miniature hero and trigger an attack. A target locks at the start of its wind-up. Touching the arena is also a way to aim.
-- Finish the fight, save a recap if wanted, and request a rematch. Camera video is never recorded by the game.
+- Finish at the full-screen **MISSION PASSED / MISSION FAILED** result, save a recap if wanted, and request a rematch. Camera video is never recorded by the game.
 
 ## If something fails
 

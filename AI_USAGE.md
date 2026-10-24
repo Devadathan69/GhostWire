@@ -4,6 +4,8 @@ If maintaining this record, briefly document the actual contributions of whichev
 
 ## Event build log
 
+Final regression at **2026-10-25T00:17:33+05:30**: Codex refined shader preloading/recovery, motion running, instruction input reset, above-head and index-up recognition, browser timing, and demo/phone documentation. All 46 unit/network tests and all 10 browser scenarios passed; final strict TypeScript/production build and the public HTTPS/network check passed. Browser evidence uses synthetic cameras. Human code review, physical phone performance, and real-person gesture rehearsal remain pending.
+
 Motion/realism upgrade at **2026-10-25T00:05:29+05:30**: Codex implemented free movement, jump/kick and expanded calibrated gestures, joystick/keyboard arbitration, richer original 3D rigs/materials and elemental effects, renderer readiness, and role-specific result screens. Added tests and the exact controls guide. Human review and real-person gesture rehearsal remain pending. TypeScript/build and 46 unit/network checks pass; the complete browser regression is in progress.
 
 Publication follow-up at **2026-10-24T23:38:29+05:30**: Codex recorded implementation revision `80df2ad32fd8206e66c3b187d750d21bab0d59a1` in `SUBMISSION.md`, updated `CHANGELOG.md`, and reviewed the Git publication. Candidate-file credential-pattern and local Markdown link checks passed, as did staged whitespace review. No game behavior changed; human review remains pending.

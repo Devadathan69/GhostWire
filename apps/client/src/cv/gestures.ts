@@ -69,7 +69,9 @@ export class GestureClassifier {
         ).length;
         const pinch = dist(points[4], points[8]) / size;
         const speed = this.previous[9] ? Math.abs(points[9].x - this.previous[9].x) / dt / size : 0;
-        const indexUp = dist(points[8], points[0]) > dist(points[6], points[0]) * 1.2;
+        const indexUp =
+          dist(points[8], points[0]) > dist(points[6], points[0]) * 1.2 &&
+          points[8].y < points[6].y - size * 0.2;
         if (role === 'hero' && folded === 3 && indexUp) candidate = 'jump';
         else if (folded >= 3) candidate = 'guard';
         else if (pinch < 0.25) candidate = role === 'hero' ? 'special' : 'power';
@@ -95,7 +97,8 @@ export class GestureClassifier {
             { x: 0, y: 0, width: 0 },
           );
       } else {
-        const raised = lw.y < ls.y - width * 0.5 && rw.y < rs.y - width * 0.5;
+        const aboveHead = Math.min(y - width * 0.5, points[0].y - width * 0.15);
+        const raised = lw.y < aboveHead && rw.y < aboveHead;
         const guard =
           dist(lw, rs) < width * 1.15 &&
           dist(rw, ls) < width * 1.15 &&
@@ -106,8 +109,8 @@ export class GestureClassifier {
           : 0;
         const reach = Math.max(dist(lw, ls), dist(rw, rs)) / width;
         const oneRaised =
-          (lw.y < ls.y - width * 0.65 && rw.y > rs.y + width * 0.25) ||
-          (rw.y < rs.y - width * 0.65 && lw.y > ls.y + width * 0.25);
+          (lw.y < aboveHead && rw.y > rs.y + width * 0.25) ||
+          (rw.y < aboveHead && lw.y > ls.y + width * 0.25);
         const kneeUp = [
           [23, 25],
           [24, 26],

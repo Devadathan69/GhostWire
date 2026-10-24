@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Movement } from '@ghostwire/shared';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Footprints } from 'lucide-react';
 
@@ -14,6 +14,14 @@ export function MovementPad({
   const [sprint, setSprint] = useState(false),
     [stick, setStick] = useState({ x: 0, z: 0 });
   const pointer = useRef<number | null>(null);
+  useEffect(() => {
+    if (disabled) {
+      pointer.current = null;
+      setStick({ x: 0, z: 0 });
+      setSprint(false);
+      onMove({ x: 0, z: 0, sprint: false });
+    }
+  }, [disabled, onMove]);
   const update = (element: HTMLDivElement, clientX: number, clientY: number) => {
     const rect = element.getBoundingClientRect();
     const rawX = (clientX - rect.left - rect.width / 2) / (rect.width * 0.35),
@@ -26,7 +34,7 @@ export function MovementPad({
   const release = () => {
     pointer.current = null;
     setStick({ x: 0, z: 0 });
-    onMove({ x: 0, z: 0, sprint: false });
+    onMove({ x: 0, z: 0, sprint });
   };
   return (
     <div className="free-movement">

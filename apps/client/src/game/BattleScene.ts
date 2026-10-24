@@ -49,9 +49,11 @@ export class BattleScene {
   private frames = 0;
   private sampleAt = performance.now();
   private lowDetail = false;
+  private shadersReady = false;
   private restoreListener = () => {
+    this.shadersReady = false;
     this.rebuildEnvironment();
-    this.onError(null);
+    this.prepareShaders();
   };
   private lossListener = (event: Event) => {
     event.preventDefault();
@@ -180,6 +182,7 @@ export class BattleScene {
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(mount);
     this.resize();
+    this.prepareShaders();
     this.renderer.setAnimationLoop(this.render);
   }
 
@@ -207,6 +210,47 @@ export class BattleScene {
     this.world.environmentIntensity = 0.65;
     room.dispose();
     generator.dispose();
+  }
+  private prepareShaders() {
+    const warmup = new THREE.Group();
+    const template: PendingAttack = {
+      id: -1,
+      role: 'hero',
+      action: 'special',
+      startedAt: 0,
+      resolvesAt: 1100,
+      damage: 0,
+      radius: 0.2,
+      target: { x: 0.5, y: 0.79 },
+    };
+    const templates = [
+      template,
+      { ...template, action: 'punch' as const },
+      { ...template, action: 'kick' as const },
+      ...this.state.spec.bossAttacks.map((attackId, index) => ({
+        ...template,
+        role: 'boss' as const,
+        action: index === 0 ? ('swipe' as const) : ('power' as const),
+        attackId,
+      })),
+    ];
+    for (const attack of templates) warmup.add(createSpell(this.state.spec, attack).root);
+    this.world.add(warmup);
+    this.hero.shield.visible = this.boss.shield.visible = true;
+    void this.renderer
+      .compileAsync(this.world, this.camera)
+      .then(() => {
+        if (this.disposed) return;
+        warmup.removeFromParent();
+        disposeObject(warmup);
+        this.hero.shield.visible = this.boss.shield.visible = false;
+        this.shadersReady = true;
+        this.onError(null);
+      })
+      .catch(() => {
+        if (!this.disposed)
+          this.onError('The 3D effects could not finish loading. Reload the raid to retry.');
+      });
   }
   private reduceDetail() {
     this.world.traverse((object) => {
@@ -512,7 +556,13 @@ export class BattleScene {
     }
   }
   private render = (frame: number) => {
-    if (this.disposed || document.hidden || this.renderer.getContext().isContextLost()) return;
+    if (
+      this.disposed ||
+      !this.shadersReady ||
+      document.hidden ||
+      this.renderer.getContext().isContextLost()
+    )
+      return;
     if (frame - this.previous > 500) {
       this.frames = 0;
       this.sampleAt = performance.now();
@@ -629,6 +679,11 @@ export class BattleScene {
       this.onReady();
     }
     this.renderer.domElement.dataset.heroWorld = `${s.fighters.hero.position.x.toFixed(2)},${s.fighters.hero.position.z.toFixed(2)}`;
+    this.renderer.domElement.dataset.activeEffect = s.pending
+      .map((a) =>
+        a.role === 'hero' && a.action === 'special' ? s.spec.heroPower : (a.attackId ?? a.action),
+      )
+      .join(',');
     const anchor = worldToScreen(this.camera, this.hero.root.position);
     this.renderer.domElement.dataset.heroAnchor = `${anchor.x.toFixed(3)},${anchor.y.toFixed(3)}`;
   };

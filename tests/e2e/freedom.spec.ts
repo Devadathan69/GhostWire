@@ -42,8 +42,11 @@ test('free walking, sprint, jumping, kicking, powers and exact instructions rema
   await expect(page.getByRole('button', { name: 'Kick', exact: true })).toBeDisabled();
   await page.waitForTimeout(450);
   await page.keyboard.press('Space');
+  await expect(canvas).toHaveAttribute('data-active-effect', 'thunder_strike');
+  await page
+    .getByTestId('game-stage')
+    .screenshot({ path: 'docs/screenshots/elemental-overdrive.png' });
   await expect(page.getByRole('button', { name: 'Overdrive', exact: true })).toBeDisabled();
-  await page.screenshot({ path: 'docs/screenshots/elemental-overdrive.png', fullPage: true });
   await expect(page.getByTestId('boss-hp')).not.toHaveText('120 / 120');
   await page.getByRole('button', { name: 'How to play', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Hero controls');

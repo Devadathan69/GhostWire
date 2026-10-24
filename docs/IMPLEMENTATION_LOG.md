@@ -32,12 +32,20 @@ Browser verification exposed a pre-existing lobby recovery issue: a refreshed ho
 - Keyboard input continues after a touch button receives focus. Result wording distinguishes the winner's role.
 - Used original procedural art and local fonts. MediaPipe models/WASM are downloaded once and served locally.
 
-## Remaining external validation
+## Free movement and motion expansion — 25 October 2026
+
+The subsequent upgrade replaces lane-bound play with authoritative world movement, sprinting, a touch joystick, input release/stale-input stopping, melee reach, locked world damage zones, jump evasion, kicks, and a pursuing training opponent. The live-video hero also moves in two dimensions. Calibrated body lean/depth, hands-up Overdrive, one-hand Jump, knee Kick, and hero hand-mode controls are documented in [CONTROLS.md](CONTROLS.md) and the in-game guide.
+
+The renderer now uses smoother articulated rigs, original grain/bump textures, environment reflections, organic stone, braziers, and separate thunder/flame/moon/claw/orb/wave effects. Outcome panels explicitly show Mission Passed/Failed for each player's role. Both views prepare before combat's countdown; shader preloading avoids first-cast compilation, and slower renderers reduce detail. Real-person gesture precision and physical-device rendering performance remain rehearsal checks.
+
+Final upgrade validation: **46 unit/network tests and all 10 browser scenarios passed**. Strict TypeScript and the production build passed. The browser suite exercised two complete human-role matches, walking/running and stopping, jump/kick, accepted elemental Overdrive and damage, exact instructions, synthetic live-video breach, real target hits, reload recovery, both outcomes, mobile controls, rematch, and graphics-context recovery. Public HTTPS assets, invites, shared combat, and media signaling also passed a separate check; TURN is not provisioned.
+
+## Earlier audit and remaining external validation
 
 An independent audit after the original build's completed handoff fixed camera
 control preferences resetting between lobby and battle, added pending capture
 cancellation, bounded result-screen reconnect recovery, and made invalid target
-acknowledgments explicit. The final build passes 30 unit/network tests and eight
+acknowledgments explicit. That earlier build passed 30 unit/network tests and eight
 browser scenarios; the expanded two-player scenarios were also rerun successfully.
 See [QA_AUDIT.md](QA_AUDIT.md) for evidence, scope and remaining manual checks.
 

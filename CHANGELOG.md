@@ -1,5 +1,13 @@
 # Change log
 
+## 2026-10-25T00:17:33+05:30 — Finish graphics loading, input precision, and full regression
+
+- Changed: preload character, shield, and power shaders before the renderer-ready signal and after graphics recovery. Shift/touch RUN now also applies to motion movement; opening instructions resets touch input. Index-up Jump requires an upward finger, and raised-hand actions use a real above-head threshold.
+- Why: avoid a first-cast shader pause, stop movement safely during instructions, and match the exact gesture guide. Updated demo/phone instructions and synthetic-camera/screenshots evidence.
+- Files: client renderer, movement pad/hook, gesture classifier and app wiring; browser scenarios; README, implementation/test/demo/phone docs and screenshots.
+- Validation: 46 unit/network tests passed, all 10 browser scenarios passed (6.4 minutes), and the final strict TypeScript/production build passed. Public HTTPS model assets, invitations, shared combat, and media signaling passed a separate check. Browser camera sources were synthetic.
+- Limitations: physical gesture tuning, physical phone/Safari performance, live OpenAI output, and venue-network video remain manual checks. TURN is configurable but not provisioned. Temporary HTTPS access depends on the running laptop.
+
 ## 2026-10-25T00:05:29+05:30 — Add free movement and richer motion combat
 
 - Changed: replaced lane movement with authoritative free walking/running for both arena fighters and two-axis movement over Reality Breach. Added a touch joystick, input-release/stale-input stopping, melee reach, locked world-space attack zones, jump evasion, kicks, and a training boss that follows the hero.

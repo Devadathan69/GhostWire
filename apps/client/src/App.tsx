@@ -828,7 +828,7 @@ export default function App() {
                       state={state}
                       role={session.role}
                       onAction={onAction}
-                      connected={net.connected}
+                      connected={net.connected && !help}
                       onMove={movement.onTouch}
                     />
                   )}

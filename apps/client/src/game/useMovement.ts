@@ -73,7 +73,11 @@ export function useMovement(active: boolean, send: (movement: Movement) => void)
             ? touch.current
             : motion.current;
       const length = Math.max(1, Math.hypot(input.x, input.z));
-      const next = { x: input.x / length, z: input.z / length, sprint: input.sprint };
+      const next = {
+        x: input.x / length,
+        z: input.z / length,
+        sprint: input.sprint || held.has('Shift') || touch.current.sprint,
+      };
       const signature = JSON.stringify(next);
       // Active movement refreshes the server's short dead-man timeout.
       if (signature !== previous || next.x || next.z) callbacks.current(next);

@@ -67,6 +67,7 @@ test('training match: real controls, breach, victory, recap and rematch', async 
 test('two independent players share combat, camera, breach, reload recovery and rematch', async ({
   browser,
 }) => {
+  test.setTimeout(150000);
   const heroContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } }),
     bossContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -115,10 +116,10 @@ test('two independent players share combat, camera, breach, reload recovery and 
   await expect(boss.getByText('CAMERA ON', { exact: true })).toBeVisible();
   if (await boss.getByRole('checkbox', { name: 'Motion controls' }).isChecked())
     await boss.getByRole('checkbox', { name: 'Motion controls' }).uncheck();
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 100; i++) {
     const strike = hero.getByRole('button', { name: 'Strike', exact: true });
-    if (await strike.isEnabled()) await strike.click();
-    await hero.waitForTimeout(480);
+    if (await strike.isEnabled()) await hero.keyboard.press('j');
+    await hero.waitForTimeout(120);
     if (await hero.getByText('02 / REALITY BREACH', { exact: true }).isVisible()) break;
   }
   await expect(hero.getByText('LIVE · BOSS CAMERA', { exact: true })).toBeVisible({

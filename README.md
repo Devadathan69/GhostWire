@@ -43,7 +43,7 @@ See [the exact controls, gestures, timings, and hand-mode alternatives](docs/CON
 | Both, arena          | Hold Shift / touch RUN | Step closer until calibrated shoulder width grows about one third   |
 | Boss                 | J: Swipe               | Extend one arm                                                      |
 | Boss                 | K: Guard               | Cross hands near chest                                              |
-| Boss                 | Space: Power           | Raise both hands above shoulders                                    |
+| Boss                 | Space: Power           | Hold both hands above the head for half a second                     |
 | Boss, hand-only mode | Swipe / Guard / Power  | Move open hand sideways / close fist / pinch thumb and index finger |
 
 Camera controls are optional and require a deliberate click. Hold a neutral pose for calibration, keep the relevant joints visible, and use small comfortable movements. A confidence drop suppresses gesture input; manual controls remain available. The boss can aim by moving a tracked wrist/palm or by touching/moving a pointer over the arena.
@@ -60,6 +60,8 @@ The colored ring is a telegraph: damage resolves when its timer finishes. A targ
 - A 50% HP cinematic breach, transparent Three.js layer, miniature 3D hero, mirrored cover-coordinate mapping, targeted hits, and explicit no-live-camera fallback labels.
 - Server-only OpenAI Responses API with Structured Outputs/Zod validation, bounded mechanics, 12-second timeout, refusal/error handling, and clearly identified curated fallbacks.
 - Procedural animated character art, three backgrounds, telegraphs, particles, hit feedback, synthetic sound, mute, reduced motion, fullscreen, and PNG recap download.
+- Original textured armor/stone, environment reflections, articulated limbs/cape, organic terrain, braziers, distinct elemental casts, and impact shockwaves. Slow/software renderers reduce detail; materials and powers preload before the opening countdown.
+- Full-screen **MISSION PASSED / MISSION FAILED** outcomes for each role, with stats, replay, and recap export.
 - Thirty-second disconnect pause and token-based resume, private role ownership, room expiry, request limits, input validation, and bounded queues.
 
 The phase-by-phase analysis is in [IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md); implementation evidence and remaining checks are in [IMPLEMENTATION_LOG.md](docs/IMPLEMENTATION_LOG.md) and [TEST_PLAN.md](docs/TEST_PLAN.md).
@@ -108,7 +110,7 @@ npm run test:e2e
 
 Unit/integration tests exercise real Socket.IO sessions, combat, schemas, coordinate transforms, gesture fixtures, and AI success/failure branches. Browser tests exercise actual UI controls, both outcomes, two independent players, camera denial, synthetic live WebRTC, real-target damage, reload recovery, recap export, mobile layouts, and rematch.
 
-The earlier 3D release passed **37 unit/network checks and nine browser scenarios**. The free-movement/motion upgrade currently passes **46 unit/network checks**; its full browser regression is being finalized. The two-player camera/breach scenario was rerun successfully after the waiting-lobby refresh fix. See [the implementation record](docs/IMPLEMENTATION_LOG.md) for the current scope; the independent audit records an earlier milestone.
+The free-movement/motion upgrade passed **46 unit/network checks and all 10 browser scenarios**, including two complete two-player matches, free walking/running, jump/kick, animated Overdrive, live-video breach, both outcomes, rematch, and graphics recovery. Strict TypeScript and the production build also passed. Public HTTPS assets, invitations, shared combat, and media signaling were separately verified. See [the implementation record](docs/IMPLEMENTATION_LOG.md) for the current scope; the independent audit records an earlier milestone.
 
 Browser camera evidence uses Chromium's **synthetic camera**, not a person or a prerecorded demonstration. It establishes that media transport/compositing works locally; it does not establish real-body gesture accuracy or phone-network connectivity. Real lighting/device testing and a consenting two-person demo recording remain required before a hackathon submission. A live OpenAI response has not been verified without an API key. The Docker recipe is provided but not executed in this environment.
 
