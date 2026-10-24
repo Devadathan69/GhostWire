@@ -30,6 +30,7 @@ export function Squad({
           data-screen={`${h.screen.x},${h.screen.y}`}
           data-downed={h.downedUntil !== null && !h.eliminated}
           data-hp={h.hp}
+          data-damage={h.damage}
           data-region={h.regionId}
         >
           <span className="squad-color" style={{ background: h.color }} />

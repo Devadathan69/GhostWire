@@ -102,7 +102,7 @@ export function createHero(spec: BattleSpec, design?: HeroDesign): Fighter {
     ),
     edge = surface(look?.trimColor ?? '#a7afb0', 0.9, 0.25, 44),
     leather = surface('#171b20', 0.05, 0.82, 21),
-    cloth = surface(look?.bodyColor ?? '#263e44', 0, 0.95, 51),
+    cloth = surface(look?.trimColor ?? '#263e44', 0, 0.95, 51),
     glow = luminous(spec.primaryColor, 0.75);
   mesh(body, new THREE.SphereGeometry(1, 24, 16), armor, [0, 1.58, 0], [0.39, 0.49, 0.25]);
   for (let i = 0; i < 3; i++)
@@ -454,7 +454,7 @@ export function createBoss(spec: BattleSpec): Fighter {
     ? mesh(
         body,
         new THREE.PlaneGeometry(1.8, 2.2, 8, 10),
-        surface(look.bodyColor, 0, 0.95, 51),
+        surface(look.trimColor, 0, 0.95, 51),
         [0, 2.1, -0.58],
       )
     : null;

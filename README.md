@@ -72,7 +72,9 @@ docker run --rm -p 3001:3001 --env-file .env ghostwire
 
 Copy `.env.example` to `.env`, set server-only `OPENAI_API_KEY`, leave `OPENAI_MODEL=gpt-6.1-sol`, then restart. The API project needs model access. **Create a world → Generate with AI** uses Responses Structured Outputs with strict validation, a 75-second timeout and an 8,000-token output budget. Missing credentials/API failures show an error; choose **Build local blueprint** explicitly for no-key creation. Preview/edit heroes, boss, environment, powers, keys and recognized gestures, then create a lobby. Members choose their hero before readying up. Generated designs use procedural 3D parts and supported animations. [Creator details and limits](docs/EXPANDING_WORLDS.md).
 
-Curated worlds bypass the API. The original simple story director retains its visibly labeled preset fallback. Keys stay on the server; requests use `store: false`. Live generation is unverified until a real key is configured; mocks verify integration, not account access.
+Curated worlds bypass the API. The original simple story director retains its visibly labeled preset fallback. Keys stay on the server; requests use `store: false`. A real `gpt-6.1-sol` request has now succeeded in 45.8 seconds, producing Thor, Doctor Strange, Iron Man, Thanos and a rooftop environment. The exact output passes generated-power/gesture regressions and a complete three-client raid. The owner also confirmed hero rendering and gestures on one physical phone. See [the live AI verification record and exact controls](docs/LIVE_AI_VERIFICATION.md).
+
+`npm run test:e2e:ai` replays the recorded real output without API charges. `npm run verify:ai -- --live --base http://localhost:3001` explicitly requests a new paid generation from a running configured server. `npm run verify:ai -- --help` makes no API call. To test an existing HTTPS demo, set `E2E_BASE_URL` before running the browser regression.
 
 ## Verification
 
@@ -86,7 +88,7 @@ npm run test:e2e
 
 The suite passes **90 rules/network/creator/motion tests in ten files**, TypeScript and the production build. **All 11 browser scenarios passed in one combined run (7.7 minutes)**, including two complete human-role matches, four-hero combat, local-camera breach, graphics-ready reconnect, both outcomes/replay, separate device regions, watching/travel, a third live realm, editable 3D blueprints, duplicate-control/no-key errors, hero selection and a custom key reaching combat. Public HTTPS verification passed assets, invitations, private identities, regional travel, live expansion and shared team damage. [Verification details](docs/TEST_PLAN.md).
 
-Physical body/hand recognition, Android/iOS performance, venue networks, a live OpenAI request, and Docker remain manual checks. Synthetic camera/landmark tests establish integration rather than real-person recognition. Existing versus-mode screenshots and [the earlier audit](docs/QA_AUDIT.md) are historical evidence; they do not establish the cooperative release. New cooperative evidence is recorded separately.
+Live OpenAI generation is verified, and the owner reported rendering/gestures working on one phone. Broader physical body/hand recognition, multiple Android/iOS devices, venue networks and Docker remain separate checks. Synthetic camera/landmark tests establish integration. Existing versus-mode screenshots and [the earlier audit](docs/QA_AUDIT.md) are historical evidence; current verification is recorded separately.
 
 ## Privacy and boundaries
 

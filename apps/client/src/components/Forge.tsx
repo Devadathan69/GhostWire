@@ -561,6 +561,7 @@ export function Forge({
                   const issue = validateCreation(p.data.creation);
                   if (issue) throw new Error(issue);
                   setSpec(p.data);
+                  setNote('Imported blueprint · validated and ready for review.');
                   setSelected(0);
                   setError('');
                 } catch (e) {

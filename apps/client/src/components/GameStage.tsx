@@ -21,6 +21,11 @@ export function GameStage({
     scene = useRef<BattleScene | null>(null);
   const latest = useRef(state);
   latest.current = state;
+  const readyCallback = useRef(onReady);
+  readyCallback.current = onReady;
+  const awaitingReady = state.raid
+    ? !state.raid.heroes[state.viewPlayerId ?? '']?.renderReady
+    : Boolean(state.renderPending);
   const [videoReady, setVideoReady] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [view, setView] = useState<'duel' | 'overlook'>('duel');
@@ -28,7 +33,9 @@ export function GameStage({
   useEffect(() => {
     let battle: BattleScene;
     try {
-      battle = new BattleScene(mount.current!, latest.current, setRenderError, onReady);
+      battle = new BattleScene(mount.current!, latest.current, setRenderError, () =>
+        readyCallback.current(),
+      );
       scene.current = battle;
       setRenderError(null);
     } catch {
@@ -46,11 +53,16 @@ export function GameStage({
     scene.current?.setState(state);
   }, [state]);
   useEffect(() => {
-    // A surviving view can acknowledge immediately; a reloaded view waits for
-    // its first actual frame, whose callback acknowledges after shader loading.
-    if (state.renderPending && mount.current?.querySelector('canvas')?.dataset.ready === 'true')
-      onReady();
-  }, [state.renderPending, state.phase]);
+    if (!awaitingReady) return;
+    // Keep the first-frame gate, but retry its confirmation until the server
+    // acknowledges this hero. A delayed/lost message must not strand a phone.
+    const confirm = () => {
+      if (mount.current?.querySelector('canvas')?.dataset.ready === 'true') readyCallback.current();
+    };
+    confirm();
+    const timer = setInterval(confirm, 1200);
+    return () => clearInterval(timer);
+  }, [awaitingReady, state.phase]);
   useEffect(() => {
     scene.current?.setLiveCamera(videoReady);
   }, [videoReady]);
@@ -74,6 +86,9 @@ export function GameStage({
     (['VICTORY', 'DEFEAT'].includes(state.phase) && state.bossHp <= state.spec.bossMaxHp * 0.5);
   const bossAttack = state.pending.find(
     (a) => a.role === 'boss' && (!state.raid || a.regionId === state.viewRegionId),
+  );
+  const customAttack = state.spec.creation?.boss.attacks.find(
+    (a) => a.mechanic === bossAttack?.attackId,
   );
   return (
     <div
@@ -148,7 +163,9 @@ export function GameStage({
       <div className="stage-topline">
         <span>
           <span className="tiny-dot" />
-          {reality ? '02 / REALITY BREACH' : '01 / THE RIFT ARENA'}
+          {reality
+            ? '02 / REALITY BREACH'
+            : `01 / ${state.spec.creation?.environment.name ?? 'THE RIFT ARENA'}`}
         </span>
         <span>
           {state.raid
@@ -177,9 +194,10 @@ export function GameStage({
       {bossAttack && (
         <div className="attack-warning">
           <Crosshair size={15} />
-          {state.spec.bossAttacks.indexOf(bossAttack.attackId!) === 0
-            ? 'INCOMING STRIKE'
-            : 'HEAVY ATTACK'}{' '}
+          {customAttack?.name ??
+            (state.spec.bossAttacks.indexOf(bossAttack.attackId!) === 0
+              ? 'INCOMING STRIKE'
+              : 'HEAVY ATTACK')}{' '}
           <strong>GUARD OR EVADE</strong>
         </div>
       )}

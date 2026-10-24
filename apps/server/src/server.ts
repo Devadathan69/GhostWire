@@ -72,6 +72,7 @@ export function makeServer() {
   const io = new Server(http, {
     maxHttpBufferSize: 32000,
     serveClient: false,
+    perMessageDeflate: { threshold: 1024, zlibDeflateOptions: { level: 3 } },
     allowRequest(req, cb) {
       const origin = req.headers.origin;
       let same = !origin;
@@ -205,7 +206,9 @@ export function makeServer() {
     encounters.set(id, { ...encounter, expires: Date.now() + 600000 });
     res.json({ id, ...encounter });
   });
-  const broadcast = (r: Room) => io.to(r.state.code).emit('battle:snapshot', r.state);
+  // Each snapshot replaces the whole state. Skip stale frames under network
+  // backpressure; room closures and request acknowledgements remain reliable.
+  const broadcast = (r: Room) => io.to(r.state.code).volatile.emit('battle:snapshot', r.state);
   function closeRoom(code: string, reason: string) {
     const r = rooms.get(code);
     if (!r) return;

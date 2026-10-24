@@ -56,6 +56,9 @@ export function Controls({
           return (
             <button
               key={m.action}
+              data-action={m.action}
+              data-key={ability?.key ?? (m.key === 'SPACE' ? ' ' : m.key.toLowerCase())}
+              data-ready-at={state.cooldowns[role][m.action] ?? 0}
               className={`action-button ${m.action === 'special' || m.action === 'power' ? 'power-button' : ''}`}
               aria-label={ability?.name ?? m.name}
               title={

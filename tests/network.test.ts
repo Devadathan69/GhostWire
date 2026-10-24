@@ -42,6 +42,11 @@ function wait(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 describe('cooperative Socket.IO sessions', () => {
+  it('negotiates compression for full generated snapshots', async () => {
+    const socket = await client();
+    const transport = socket.io.engine.transport as unknown as { ws?: { extensions?: string } };
+    expect(transport.ws?.extensions).toContain('permessage-deflate');
+  });
   it('expands an active world without pausing existing heroes and waits for new graphics', async () => {
     const host = await client(),
       peer = await client(),

@@ -1,5 +1,19 @@
 # Change log
 
+## 2026-10-25T05:28:14+05:30 — Confirm readiness recovery and preserve the live-AI milestone
+
+- Validation: the browser test that deliberately drops the first graphics confirmation passed. Existing AI-ally training and two complete human-role matches through camera breach, reconnect and rematch also passed with the updated input pilot (three scenarios in 2.5 minutes). All 129 automated checks and the production build/TypeScript passed before this browser run.
+- Transport: the refreshed public protocol probe reached Arena with both heroes ready. Direct-server compression is negotiated by the network regression; Cloudflare's current public edge did not advertise it. The snapshot flow remains correct without that extension.
+- Status: live generation, all generated power/gesture regressions and a full local three-client generated raid are verified. The fresh public full-match replay follows this checkpoint. No physical full-team match or broad device coverage is claimed.
+
+## 2026-10-25T05:25:53+05:30 — Verify real gpt-6.1-sol output in cooperative play
+
+- Live generation: one actual application API request succeeded using the owner's private server key and gpt-6.1-sol, completing in 45.8 seconds. Preserved the unmodified public test brief/output as tests/fixtures/ai-avengers.json. Thor, Doctor Strange and Iron Man have distinct equipment, supported powers and keys; Thanos and the rooftop palette/weather/props are generated configuration. No credential or participant data is in the fixture.
+- Verification: 129 unit/network/creator/motion checks pass across 11 files, including every generated power and gesture plus actual compression negotiation. TypeScript/build pass. The exact generated encounter completed a three-client local browser raid with all heroes contributing damage, all ultimate effects and named boss attacks, late expansion, camera-backed breach, shared victory and fresh rematch. The owner reported hero rendering and gestures working on one physical phone. This is not a claim of three independently tested physical phones.
+- Corrections: imported blueprints now have an honest import label; generated environment and boss move names appear in-game; capes use secondary costume color. Added replay tests without API charges, an explicitly opt-in paid verifier, HTTPS browser-test targeting, and profile-aware test inputs that move and travel for rescues rather than forcing outcomes.
+- Network work: a public replay stalled at graphics readiness. Added confirmation retries until the server acknowledges the rendered hero, negotiated WebSocket compression, and replaceable snapshots that skip stale frames under backpressure. A real public two-client protocol probe reached Arena with both readiness flags true and 116ms confirmation latency; a controlled first-message-loss browser regression and full public replay are still being completed.
+- Limits: no synthetic test is evidence for every physical phone, lighting condition or Safari version. Physical confirmation is the owner's report; human code review, Docker and organizer handoff remain unverified. Final browser/public results will be recorded separately.
+
 ## 2026-10-25T04:56:52+05:30 — Record the published connected-world implementation
 
 - Changed: recorded verified implementation 19e7846a191fdc5e816c3f35b4f0c7982c4c8d25 in SUBMISSION.md, with connected-device realms, creative generation scope, reproducible demo steps, current checks and known limitations. This follow-up changes documentation only.

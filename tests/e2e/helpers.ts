@@ -56,6 +56,7 @@ async function pilot(page: Page, index: number) {
     win.raidPilotStop?.();
     win.raidPilotAttack = true;
     const held = new Set<string>();
+    let nextTravel = 0;
     let direction = index % 2 ? -1 : 1;
     const event = (key: string, type: 'keydown' | 'keyup') =>
       document.body.dispatchEvent(
@@ -71,8 +72,25 @@ async function pilot(page: Page, index: number) {
     };
     const timer = window.setInterval(() => {
       const ready = (name: string) => {
-        const b = document.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+        const action = (
+          {
+            Strike: 'punch',
+            Overdrive: 'special',
+            Evade: 'dodge',
+            Guard: 'guard',
+            Jump: 'jump',
+          } as Record<string, string>
+        )[name];
+        const b = document.querySelector<HTMLButtonElement>(
+          action ? `.action-button[data-action="${action}"]` : `button[aria-label="${name}"]`,
+        );
         return !!b && !b.disabled;
+      };
+      const power = (action: string) => {
+        const button = document.querySelector<HTMLButtonElement>(
+          `.action-button[data-action="${action}"]`,
+        );
+        if (button?.dataset.key) press(button.dataset.key);
       };
       const own = document.querySelector<HTMLElement>('.squad-member[data-self="true"]');
       const down = document.querySelector<HTMLElement>(
@@ -87,6 +105,22 @@ async function pilot(page: Page, index: number) {
         document.querySelector('.result-card')
       ) {
         release();
+        return;
+      }
+      if (down && down.dataset.region !== own.dataset.region) {
+        release();
+        const map = document.querySelector<HTMLDetailsElement>('.world-map-details');
+        if (map && !map.open) map.querySelector<HTMLElement>('summary')?.click();
+        const card = [...document.querySelectorAll<HTMLElement>('.realm-card')].find(
+          (c) => c.dataset.regionId === down.dataset.region,
+        );
+        const travel = [...(card?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find(
+          (b) => b.textContent?.trim() === 'Travel here',
+        );
+        if (travel && !travel.disabled && performance.now() > nextTravel) {
+          travel.click();
+          nextTravel = performance.now() + 1300;
+        }
         return;
       }
       const reality = canvas?.dataset.phase === 'REALITY',
@@ -105,6 +139,16 @@ async function pilot(page: Page, index: number) {
       let walk =
         !reviving &&
         (down ? Math.hypot(dx, dz) > (reality ? 0.1 : 2.2) : !reality && Math.hypot(dx, dz) > 2.7);
+      if (!reality && !down && !reviving) {
+        const distance = Math.max(0.1, Math.hypot(dx, dz)),
+          radial = (distance - 2.8) * 0.7,
+          turn = index % 2 ? -1 : 1;
+        const x = dx / distance,
+          z = dz / distance;
+        dx = x * radial - z * turn;
+        dz = z * radial + x * turn;
+        walk = true;
+      }
       if (reality && !down && !reviving) {
         const x = Number(own.dataset.screen?.split(',')[0] ?? 0.5);
         if (x > 0.8) direction = -1;
@@ -134,16 +178,16 @@ async function pilot(page: Page, index: number) {
         return;
       }
       if (Number(stage?.dataset.impactIn ?? 99999) < 500) {
-        if (ready('Evade')) press('l');
-        else if (ready('Jump')) press('e');
+        if (ready('Evade')) power('dodge');
+        else if (ready('Jump')) power('jump');
         else if (ready('Guard')) {
-          press('k');
+          power('guard');
           return;
         }
       }
       if (win.raidPilotAttack) {
-        if (ready('Overdrive')) press(' ');
-        else if (ready('Strike')) press('j');
+        if (ready('Overdrive')) power('special');
+        else if (ready('Strike')) power('punch');
       }
     }, 100);
     win.raidPilotStop = () => {
@@ -152,8 +196,19 @@ async function pilot(page: Page, index: number) {
     };
   }, index);
 }
-export async function fight(pages: Page[], untilBreach = false) {
+export async function startPilots(pages: Page[], attack = true) {
   await Promise.all(pages.map((p, i) => pilot(p, i)));
+  if (!attack)
+    await Promise.all(
+      pages.map((p) =>
+        p.evaluate(() => {
+          (window as PilotWindow).raidPilotAttack = false;
+        }),
+      ),
+    );
+}
+export async function fight(pages: Page[], untilBreach = false) {
+  await startPilots(pages);
   let breached = false;
   const deadline = Date.now() + 100000;
   while (Date.now() < deadline) {

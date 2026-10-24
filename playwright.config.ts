@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 const port = process.env.E2E_PORT || '3211';
-const baseURL = `http://localhost:${port}`;
+const baseURL = process.env.E2E_BASE_URL || `http://localhost:${port}`;
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 90000,
@@ -20,11 +20,13 @@ export default defineConfig({
       args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
     },
   },
-  webServer: {
-    command: 'node dist/server/index.js',
-    env: { PORT: port },
-    url: `${baseURL}/api/health`,
-    reuseExistingServer: false,
-    timeout: 30000,
-  },
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'node dist/server/index.js',
+        env: { PORT: port },
+        url: `${baseURL}/api/health`,
+        reuseExistingServer: false,
+        timeout: 30000,
+      },
 });

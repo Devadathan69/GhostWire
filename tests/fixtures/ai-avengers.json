@@ -1,0 +1,357 @@
+{
+  "fixtureVersion": 1,
+  "generatedAt": "2026-10-24T23:31:39.768Z",
+  "model": "gpt-6.1-sol",
+  "elapsedMs": 45762,
+  "source": "ai",
+  "brief": {
+    "story": "Movie-inspired Avengers cooperative raid: Thor, Doctor Strange and Iron Man defend a fractured New York rooftop against Thanos. Preserve these character names and make each hero visibly distinct using the supported 3D parts. Cooperation, rift travel and Reality Breach decide the fight.",
+    "heroes": "Thor, Doctor Strange, Iron Man",
+    "boss": "Thanos",
+    "environment": "Rainy nighttime New York rooftop. Blue-gray metal/stone ground, ruined towers and glowing portal crystals. Place decorative props outside the playable circle (at least 8 units from center).",
+    "powers": "Thor: hammer, blue armor, lightning ultimate. Doctor Strange: red cape, mage form, magical fists and moon-shield ultimate. Iron Man: red/gold tech armor, fists and fire-orb repulsor ultimate. Thanos: large gold/purple armored humanoid, gauntlet-like fists, two visibly different boss attacks. Balance a 2-4 hero raid.",
+    "controls": "Thor: J strike, I kick, K guard, L evade, E jump, Space ultimate. Doctor Strange: U strike, O kick, P guard, H evade, N jump, M ultimate. Iron Man can use default hero keys. Each hero uses the six canonical distinct physical gestures for its six actions. Explain exact supported mappings."
+  },
+  "spec": {
+    "version": 1,
+    "title": "Avengers: Reality Breach",
+    "heroName": "Thor",
+    "bossName": "Thanos",
+    "introLine": "Thor, Doctor Strange, Iron Man—hold the rooftop! Thanos is tearing New York apart.",
+    "victoryLine": "The last breach closes. Above a rain-soaked New York, the Avengers stand together.",
+    "arena": "storm",
+    "elementalTheme": "lightning",
+    "primaryColor": "#54BFFF",
+    "secondaryColor": "#AB65F5",
+    "heroPower": "thunder_strike",
+    "bossAttacks": ["fire_orb", "shadow_wave"],
+    "bossMaxHp": 130,
+    "heroMaxHp": 105,
+    "phaseTwoAt": 0.5,
+    "creation": {
+      "context": "A cooperative, movie-inspired rooftop showdown: Thor, Doctor Strange and Iron Man defend fractured New York against Thanos. Use 130 as base boss HP before squad-size scaling for 2–4 players. Three distinct hero designs are available; a fourth player can reuse a design. At half health, Thanos enters phase two. Coordinate defenses and stagger ultimates around Reality Breach.",
+      "explanation": "All designs use procedural supported parts, not actor likenesses or downloaded assets. Every design, power, key and control mapping is editable. Keys are hero-local: Thor J/I/K/L/E/Space; Strange U/O/P/H/N/M; Iron Man 1/2/3/4/5/6, ordered strike/kick/guard/evade/jump/ultimate. Exact gesture mappings for every hero: punch=arm extension or palm swipe; kick=knee lift; guard=cross wrists or fist; dodge=duck; jump=one hand overhead or index up; special=both hands overhead or pinch. These recognizers,",
+      "heroes": [
+        {
+          "name": "Thor",
+          "description": "Broad blue-armored knight with silver trim, a red cape and a chunky hammer. Lightning marks his attacks.",
+          "appearance": {
+            "archetype": "knight",
+            "bodyColor": "#245B9C",
+            "trimColor": "#CAD8E7",
+            "accentColor": "#63D9FF",
+            "head": "helmet",
+            "weapon": "hammer",
+            "cape": true,
+            "size": 1.12
+          },
+          "abilities": [
+            {
+              "action": "punch",
+              "name": "Mjolnir Strike",
+              "description": "J or punch gesture: a compact hammer blow, approximated through the punch slot.",
+              "key": "j",
+              "gesture": "punch",
+              "effect": "thunder_strike",
+              "damage": 10,
+              "cooldownMs": 550
+            },
+            {
+              "action": "kick",
+              "name": "Asgardian Boot",
+              "description": "I or knee lift: drive an armored kick into Thanos.",
+              "key": "i",
+              "gesture": "kick",
+              "effect": "thunder_strike",
+              "damage": 14,
+              "cooldownMs": 1000
+            },
+            {
+              "action": "guard",
+              "name": "Hammer Ward",
+              "description": "K or crossed wrists/fist: brace behind a pale defensive ward.",
+              "key": "k",
+              "gesture": "guard",
+              "effect": "moon_shield",
+              "damage": 0,
+              "cooldownMs": 1400
+            },
+            {
+              "action": "dodge",
+              "name": "Storm Sidestep",
+              "description": "L or duck: evade a marked impact; duck approximates the sidestep command.",
+              "key": "l",
+              "gesture": "dodge",
+              "effect": "thunder_strike",
+              "damage": 0,
+              "cooldownMs": 1600
+            },
+            {
+              "action": "jump",
+              "name": "Thunderbound",
+              "description": "E or one hand overhead/index up: leap over the low breach wave.",
+              "key": "e",
+              "gesture": "jump",
+              "effect": "thunder_strike",
+              "damage": 0,
+              "cooldownMs": 1300
+            },
+            {
+              "action": "special",
+              "name": "Call the Lightning",
+              "description": "Space or both hands overhead/pinch: unleash a brilliant blue lightning ultimate.",
+              "key": " ",
+              "gesture": "special",
+              "effect": "thunder_strike",
+              "damage": 38,
+              "cooldownMs": 8500
+            }
+          ]
+        },
+        {
+          "name": "Doctor Strange",
+          "description": "Slim blue-robed mage with dark hair, a crimson cape and glowing magical fists.",
+          "appearance": {
+            "archetype": "mage",
+            "bodyColor": "#233A70",
+            "trimColor": "#C32F43",
+            "accentColor": "#FFB94A",
+            "head": "hair",
+            "weapon": "fists",
+            "cape": true,
+            "size": 0.98
+          },
+          "abilities": [
+            {
+              "action": "punch",
+              "name": "Mandala Fist",
+              "description": "U or arm extension/palm swipe: strike with a glowing spell-wrapped fist.",
+              "key": "u",
+              "gesture": "punch",
+              "effect": "flame_slash",
+              "damage": 8,
+              "cooldownMs": 450
+            },
+            {
+              "action": "kick",
+              "name": "Astral Heel",
+              "description": "O or knee lift: deliver a crescent-lit kick.",
+              "key": "o",
+              "gesture": "kick",
+              "effect": "shadow_wave",
+              "damage": 12,
+              "cooldownMs": 900
+            },
+            {
+              "action": "guard",
+              "name": "Seal of Protection",
+              "description": "P or crossed wrists/fist: raise a circular magical guard.",
+              "key": "p",
+              "gesture": "guard",
+              "effect": "moon_shield",
+              "damage": 0,
+              "cooldownMs": 1200
+            },
+            {
+              "action": "dodge",
+              "name": "Rift Feint",
+              "description": "H or duck: evasive movement with a rift-colored flourish, not a teleport.",
+              "key": "h",
+              "gesture": "dodge",
+              "effect": "shadow_wave",
+              "damage": 0,
+              "cooldownMs": 1500
+            },
+            {
+              "action": "jump",
+              "name": "Cloak Lift",
+              "description": "N or one hand overhead/index up: a short cloak-assisted jump, not sustained flight.",
+              "key": "n",
+              "gesture": "jump",
+              "effect": "moon_shield",
+              "damage": 0,
+              "cooldownMs": 1200
+            },
+            {
+              "action": "special",
+              "name": "Moon-Shield Convergence",
+              "description": "M or both hands overhead/pinch: invoke the moon-shield ultimate; its closing seal strikes Thanos.",
+              "key": "m",
+              "gesture": "special",
+              "effect": "moon_shield",
+              "damage": 22,
+              "cooldownMs": 8000
+            }
+          ]
+        },
+        {
+          "name": "Iron Man",
+          "description": "Compact red-and-gold tech armor with a full mask, luminous cyan accents and gauntlet-like fists.",
+          "appearance": {
+            "archetype": "tech",
+            "bodyColor": "#B82432",
+            "trimColor": "#E9B94F",
+            "accentColor": "#85ECFF",
+            "head": "mask",
+            "weapon": "fists",
+            "cape": false,
+            "size": 1.04
+          },
+          "abilities": [
+            {
+              "action": "punch",
+              "name": "Servo Strike",
+              "description": "1 or arm extension/palm swipe: land a powered gauntlet punch.",
+              "key": "1",
+              "gesture": "punch",
+              "effect": "flame_slash",
+              "damage": 9,
+              "cooldownMs": 500
+            },
+            {
+              "action": "kick",
+              "name": "Thruster Heel",
+              "description": "2 or knee lift: deliver a jet-assisted armored kick.",
+              "key": "2",
+              "gesture": "kick",
+              "effect": "flame_slash",
+              "damage": 15,
+              "cooldownMs": 1100
+            },
+            {
+              "action": "guard",
+              "name": "Armor Lock",
+              "description": "3 or crossed wrists/fist: brace armored forearms behind a luminous guard.",
+              "key": "3",
+              "gesture": "guard",
+              "effect": "moon_shield",
+              "damage": 0,
+              "cooldownMs": 1400
+            },
+            {
+              "action": "dodge",
+              "name": "Vector Evasion",
+              "description": "4 or duck: a short evasive maneuver, not free flight.",
+              "key": "4",
+              "gesture": "dodge",
+              "effect": "flame_slash",
+              "damage": 0,
+              "cooldownMs": 1500
+            },
+            {
+              "action": "jump",
+              "name": "Booster Hop",
+              "description": "5 or one hand overhead/index up: hop above the breach wave.",
+              "key": "5",
+              "gesture": "jump",
+              "effect": "fire_orb",
+              "damage": 0,
+              "cooldownMs": 1300
+            },
+            {
+              "action": "special",
+              "name": "Repulsor Overcharge",
+              "description": "6 or both hands overhead/pinch: launch a concentrated fire-orb repulsor ultimate.",
+              "key": "6",
+              "gesture": "special",
+              "effect": "fire_orb",
+              "damage": 35,
+              "cooldownMs": 8000
+            }
+          ]
+        }
+      ],
+      "boss": {
+        "name": "Thanos",
+        "description": "An oversized purple armored humanoid built from colossus parts, gold plates and enormous gauntlet-like fists. His orange projectile and violet ground wave have distinct silhouettes",
+        "appearance": {
+          "archetype": "colossus",
+          "bodyColor": "#75469C",
+          "trimColor": "#D3AA4F",
+          "accentColor": "#F0C875",
+          "head": "helmet",
+          "weapon": "fists",
+          "cape": false,
+          "size": 1.12
+        },
+        "attacks": [
+          {
+            "mechanic": "fire_orb",
+            "name": "Power Gauntlet: Falling Sun",
+            "damage": 18,
+            "warning": 1400,
+            "radius": 0.12
+          },
+          {
+            "mechanic": "shadow_wave",
+            "name": "Reality Breach",
+            "damage": 24,
+            "warning": 1800,
+            "radius": 0.12
+          }
+        ]
+      },
+      "environment": {
+        "name": "Fractured Manhattan Rooftop",
+        "description": "Rainy nighttime New York rooftop with blue-gray metal decking and stone parapets. Keep the playable circle clear inside radius 7; every decorative prop sits at least 10 units from",
+        "biome": "storm",
+        "skyColor": "#0B142B",
+        "fogColor": "#35455F",
+        "groundColor": "#536879",
+        "propColor": "#69788B",
+        "weather": "rain",
+        "groundMaterial": "metal",
+        "props": [
+          {
+            "kind": "tower",
+            "x": -12,
+            "z": -10,
+            "scale": 2.4
+          },
+          {
+            "kind": "tower",
+            "x": 12,
+            "z": -11,
+            "scale": 2.8
+          },
+          {
+            "kind": "ruin",
+            "x": -11,
+            "z": 6,
+            "scale": 1.7
+          },
+          {
+            "kind": "ruin",
+            "x": 11,
+            "z": 7,
+            "scale": 1.5
+          },
+          {
+            "kind": "crystal",
+            "x": -10,
+            "z": 0,
+            "scale": 1.5
+          },
+          {
+            "kind": "crystal",
+            "x": 10,
+            "z": 0,
+            "scale": 1.5
+          },
+          {
+            "kind": "crystal",
+            "x": 0,
+            "z": -10,
+            "scale": 1.8
+          },
+          {
+            "kind": "crystal",
+            "x": 0,
+            "z": 10,
+            "scale": 1.3
+          }
+        ]
+      }
+    }
+  }
+}
