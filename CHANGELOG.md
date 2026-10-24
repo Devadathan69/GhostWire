@@ -1,5 +1,11 @@
 # Change log
 
+## 2026-10-25T04:56:52+05:30 — Record the published connected-world implementation
+
+- Changed: recorded verified implementation 19e7846a191fdc5e816c3f35b4f0c7982c4c8d25 in SUBMISSION.md, with connected-device realms, creative generation scope, reproducible demo steps, current checks and known limitations. This follow-up changes documentation only.
+- Publication: implementation and milestone commits were successfully pushed to Devadathan69/GhostWire main, preserving shared history. No live key, room token or private QR was committed.
+- Validation: 90 automated checks, 11 combined browser scenarios (7.7 minutes), build/TypeScript and public HTTPS multiplayer checks passed; final guide/cape cleanup was rebuilt/typechecked. Credential-pattern/local-link and whitespace review passed. Human review, physical-device rehearsal, live API output and organizer handoff remain unconfirmed.
+
 ## 2026-10-25T04:55:32+05:30 — Complete connected-world and creator verification
 
 - Changed: protected a living reinforcement from premature squad-wipe failure while its graphics load; reset boss roaming relative to the raid opening; reduced graphics warmup to used effects; added arrival-loading feedback and visible-region diagnostics. Honored custom boss equipment/headgear/cape and the specter cape option, avoided discarded preview weapon geometry, and clarified custom versus preset controls.
