@@ -4,6 +4,8 @@ If maintaining this record, briefly document the actual contributions of whichev
 
 ## Event build log
 
+Cooperative publication at **2026-10-25T01:16:13+05:30**: Codex pushed verified implementation `2cfb7e827e6de6b99a5617ca2710270b952588af` to the owner-authorized submitted repository, then updated `SUBMISSION.md` and this documentation record with its exact SHA, cooperative scope, 69-test/nine-browser validation, and known limits. No runtime behavior changed in the follow-up; human review and physical rehearsal remain pending.
+
 Final cooperative verification at **2026-10-25T01:14:55+05:30**: Codex completed all 69 unit/network tests, TypeScript/production build, and the combined nine-scenario browser run (all passed, 5.7 minutes), then updated the current guides and synthetic-camera/3D evidence. Public HTTPS assets, invitations, separate identities, blocked solo damage, and coordinated team damage also passed. A 119-file publication check found zero credential-pattern matches or broken local links. No real-person motion certification or human code review is claimed.
 
 Cooperative completion checks at **2026-10-25T01:08:50+05:30**: Codex fixed the observed reconnect graphics-loading gap, added a fair rescue opening and regression, reviewed four-hero visuals, and migrated browser pilots to DOM keyboard inputs that keep defending during screenshots without altering game state. All 69 unit/network checks, TypeScript/build, and the targeted two-human/two-match scenario passed; the other eight scenarios passed in the preceding run. The final combined run is in progress. Camera evidence is synthetic; human review and physical rehearsal remain pending.
