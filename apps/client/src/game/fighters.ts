@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { BattleSpec } from '@ghostwire/shared';
+import type { BattleSpec, HeroDesign } from '@ghostwire/shared';
 import { batchRigidMeshes, link, luminous, mesh } from './geometry';
 import { surface } from './surfaces';
 
@@ -84,15 +84,23 @@ function protection(root: THREE.Group, color: string, height: number) {
   return { shield, aura };
 }
 
-export function createHero(spec: BattleSpec): Fighter {
+export function createHero(spec: BattleSpec, design?: HeroDesign): Fighter {
+  const look = design?.appearance;
+  if (look) spec = { ...spec, primaryColor: look.accentColor };
   const root = new THREE.Group(),
     body = new THREE.Group(),
     head = new THREE.Group();
   root.add(body);
   body.add(head);
   head.position.y = 2.12;
-  const armor = surface('#4a626b', 0.82, 0.32, 12),
-    edge = surface('#a7afb0', 0.9, 0.25, 44),
+  root.userData.designScale = look?.size ?? 1;
+  const armor = surface(
+      look?.bodyColor ?? '#4a626b',
+      look?.archetype === 'mage' ? 0.15 : 0.82,
+      0.32,
+      12,
+    ),
+    edge = surface(look?.trimColor ?? '#a7afb0', 0.9, 0.25, 44),
     leather = surface('#171b20', 0.05, 0.82, 21),
     cloth = surface('#263e44', 0, 0.95, 51),
     glow = luminous(spec.primaryColor, 0.75);
@@ -228,6 +236,36 @@ export function createHero(spec: BattleSpec): Fighter {
   capeGeo.computeVertexNormals();
   cloth.side = THREE.DoubleSide;
   const cape = mesh(body, capeGeo, cloth, [0, 1.88, -0.19]);
+  cape.visible = look?.cape ?? true;
+  if (look && look.weapon !== 'blade') {
+    weapon.clear();
+    if (look.weapon === 'staff') {
+      capsule(weapon, 0.045, 1.8, edge, [0, 0.4, 0]);
+      mesh(weapon, new THREE.IcosahedronGeometry(0.17, 1), glow, [0, 1.4, 0]);
+    } else if (look.weapon === 'hammer') {
+      capsule(weapon, 0.05, 0.7, leather, [0, 0.35, 0]);
+      mesh(weapon, new THREE.BoxGeometry(0.65, 0.4, 0.36), edge, [0, 0.85, 0]);
+      mesh(weapon, new THREE.BoxGeometry(0.68, 0.06, 0.38), glow, [0, 0.85, 0]);
+    } else mesh(weapon, new THREE.SphereGeometry(0.17, 12, 8), glow, [0, 0, 0]);
+  }
+  if (look?.head === 'hood')
+    mesh(head, new THREE.ConeGeometry(0.36, 0.5, 12), cloth, [0, 0.22, -0.06]);
+  if (look?.head === 'hair')
+    for (let i = 0; i < 7; i++)
+      mesh(head, new THREE.ConeGeometry(0.07, 0.25, 5), edge, [(i - 3) * 0.07, 0.24, -0.04]);
+  if (look?.head === 'mask')
+    mesh(head, new THREE.BoxGeometry(0.32, 0.25, 0.1), edge, [0, -0.05, 0.22]);
+  if (look?.archetype === 'tech') {
+    mesh(body, new THREE.TorusGeometry(0.16, 0.03, 6, 20), glow, [0, 1.65, 0.26]);
+    for (const side of [-1, 1])
+      mesh(body, new THREE.BoxGeometry(0.2, 0.5, 0.24), armor, [side * 0.36, 1.45, -0.2]);
+  }
+  if (look?.archetype === 'beast' || look?.archetype === 'colossus') body.scale.set(1.2, 1.08, 1.2);
+  if (look?.archetype === 'specter') {
+    cape.visible = true;
+    mesh(head, new THREE.TorusGeometry(0.35, 0.025, 5, 24), glow, [0, 0.4, 0]).rotation.x =
+      Math.PI / 2;
+  }
   [head, weapon, ...arms, ...legs, ...forearms, ...shins].forEach((part) => batchRigidMeshes(part));
   batchRigidMeshes(body, [cape]);
   return {
@@ -246,14 +284,32 @@ export function createHero(spec: BattleSpec): Fighter {
 }
 
 export function createBoss(spec: BattleSpec): Fighter {
+  const look = spec.creation?.boss.appearance;
+  if (look && ['tech', 'knight', 'mage', 'specter'].includes(look.archetype)) {
+    const fighter = createHero(spec, {
+      name: spec.bossName,
+      description: spec.creation!.boss.description,
+      appearance: look,
+      abilities: [],
+    });
+    fighter.root.userData.designScale = look.size * 1.65;
+    return fighter;
+  }
+  if (look) spec = { ...spec, secondaryColor: look.accentColor };
   const root = new THREE.Group(),
     body = new THREE.Group(),
     head = new THREE.Group();
   root.add(body);
   body.add(head);
   head.position.set(0, 3.15, 0.08);
-  const skin = surface(spec.arena === 'shadow_forest' ? '#34303d' : '#3d3a37', 0.12, 0.92, 34),
-    plates = surface('#646261', 0.5, 0.62, 71),
+  root.userData.designScale = look?.size ?? 1;
+  const skin = surface(
+      look?.bodyColor ?? (spec.arena === 'shadow_forest' ? '#34303d' : '#3d3a37'),
+      0.12,
+      0.92,
+      34,
+    ),
+    plates = surface(look?.trimColor ?? '#646261', 0.5, 0.62, 71),
     bone = surface('#b2a58b', 0.12, 0.65, 62),
     dark = surface('#100e11', 0, 0.9, 6),
     glow = luminous(spec.secondaryColor, 1.8);

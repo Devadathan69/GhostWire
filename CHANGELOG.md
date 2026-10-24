@@ -1,5 +1,18 @@
 # Change log
 
+## 2026-10-25T04:39:50+05:30 — Verify the world/creator milestone and refine playability
+
+- Validation: all 88 unit/network/creator/motion tests and TypeScript pass. The production build passed before the final server cancellation refinement, which is covered by an added regression and will be rebuilt for release. Eight original browser scenarios passed in the first run; its movement case now passes separately on the refreshed build. World/creator browser checks remain in progress.
+- Corrections: local-template weapon selection, remote Kick feedback, long-form grid overlap, creator lighting/weather, compact phone world-map access, late graphics timeout, cancellation propagated to OpenAI, and a two-request generation concurrency limit. The initial world browser assertion expected the boss to remain after a reinforcement joined; it now checks invasion before that join, since roaming is intended.
+- Scope and limits: connected realms and editable procedural 3D generation are implemented. No API key is configured locally, so live model generation is not claimed. Physical motion/phone performance and human code review remain pending. Final browser/public results will be recorded separately.
+
+## 2026-10-25T04:34:47+05:30 — Add connected device realms and the creative forge
+
+- Changed: one owned realm per human device, region-scoped combat/collisions/revives, rift support attacks, channeled hero travel, telegraphed boss invasions, live reinforcements with proportional boss scaling, dynamic 3D actors, and a world map with watch/travel/invite controls.
+- Creator: added server-side gpt-6.1-sol Responses Structured Outputs, strict editable hero/boss/environment schemas, explicit local blueprints, 3D preview/editor, per-player hero selection, custom power keys/gestures/recharge/damage and supported elemental animations. No API key is exposed to the browser or committed. Reused existing dependencies and documented official API sources in docs/EXPANDING_WORLDS.md.
+- Validation: 87 unit/network/creator/gesture tests pass across ten files; TypeScript passes. An earlier production build passed. Browser verification is in progress: camera lifecycle, AI-ally victory, two complete human-role raids with breach/reconnect/rematch, and four-hero combat passed. The movement scenario found a remote Kick presentation issue; the UI now explains that travel is required, with its browser regression pending a fresh build.
+- Limits: live AI generation is not verified because no local API key is configured. Procedural 3D parts/effects do not establish exact film assets or arbitrary pose recognition. Physical gestures/phones, venue conditions and human review remain unverified. Final browser/public checks will be recorded after completion.
+
 ## 2026-10-25T01:16:13+05:30 — Record the published cooperative implementation
 
 - Changed: recorded final cooperative implementation SHA `2cfb7e827e6de6b99a5617ca2710270b952588af` in `SUBMISSION.md`, with current team mechanics, setup, checks, and limitations. Updated the AI/publication record. This follow-up changes documentation only.

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   heroPosition,
   heroView,
+  EffectSchema,
   MELEE_RANGE,
   type BattleState,
   type PendingAttack,
@@ -101,13 +102,17 @@ export class BattleScene {
     this.renderer.domElement.addEventListener('webglcontextrestored', this.restoreListener);
     mount.appendChild(this.renderer.domElement);
     this.themeBackground = new THREE.Color(
-      initial.spec.arena === 'shadow_forest'
-        ? '#141323'
-        : initial.spec.arena === 'storm'
-          ? '#101c2d'
-          : '#19202b',
+      initial.spec.creation?.environment.skyColor ??
+        (initial.spec.arena === 'shadow_forest'
+          ? '#141323'
+          : initial.spec.arena === 'storm'
+            ? '#101c2d'
+            : '#19202b'),
     );
-    this.fog = new THREE.FogExp2(this.themeBackground, 0.026);
+    this.fog = new THREE.FogExp2(
+      initial.spec.creation?.environment.fogColor ?? this.themeBackground,
+      0.026,
+    );
     this.world.background = this.themeBackground;
     this.world.fog = this.fog;
     this.camera.position.set(0, 6.6, 14.8);
@@ -141,7 +146,7 @@ export class BattleScene {
     this.world.add(heroLight);
     this.arena = createArena(initial.spec);
     this.world.add(this.arena.root);
-    this.hero = createHero(initial.spec);
+    this.hero = createHero(initial.spec, initial.raid?.heroes[initial.viewPlayerId ?? '']?.design);
     this.boss = createBoss(initial.spec);
     this.world.add(this.hero.root, this.boss.root);
     if (initial.raid) {
@@ -149,7 +154,7 @@ export class BattleScene {
         const fighter =
           h.id === initial.viewPlayerId
             ? this.hero
-            : createHero({ ...initial.spec, primaryColor: h.color });
+            : createHero({ ...initial.spec, primaryColor: h.color }, h.design);
         if (h.id !== initial.viewPlayerId) {
           this.teammates.set(h.id, fighter);
           this.world.add(fighter.root);
@@ -220,6 +225,18 @@ export class BattleScene {
   setState(state: BattleState) {
     if (state.clock !== this.state.clock) this.received = performance.now();
     this.state = state;
+    for (const h of Object.values(state.raid?.heroes ?? {})) {
+      if (h.id === state.viewPlayerId || this.teammates.has(h.id)) continue;
+      const fighter = createHero({ ...state.spec, primaryColor: h.color }, h.design);
+      fighter.root.position.set(h.fighter.position.x, 0, h.fighter.position.z);
+      this.teammates.set(h.id, fighter);
+      this.world.add(fighter.root);
+    }
+    const region = state.raid?.regions[state.viewRegionId ?? ''];
+    if (region) {
+      this.arena.vortex.uniforms.tint.value.set(region.color);
+      this.renderer.domElement.dataset.region = region.id;
+    }
   }
   setLiveCamera(live: boolean) {
     this.liveCamera = live;
@@ -256,6 +273,7 @@ export class BattleScene {
     };
     const templates = [
       template,
+      ...EffectSchema.options.map((effect) => ({ ...template, effect })),
       { ...template, action: 'punch' as const },
       { ...template, action: 'kick' as const },
       ...this.state.spec.bossAttacks.map((attackId, index) => ({
@@ -543,7 +561,15 @@ export class BattleScene {
       Math.cos(facing - f.root.rotation.y),
     );
     f.root.rotation.y += difference * 0.22;
-    f.root.scale.setScalar(hero && reality ? 0.66 : !hero && s.raid ? (reality ? 0.8 : 1.15) : 1);
+    f.root.scale.setScalar(
+      (hero && reality ? 0.66 : !hero && s.raid ? (reality ? 0.8 : 1.15) : 1) *
+        (f.root.userData.designScale ?? 1),
+    );
+    const crossing = hero ? s.raid?.heroes[s.viewPlayerId ?? '']?.travel : s.raid?.bossTransit;
+    if (crossing)
+      f.root.scale.multiplyScalar(
+        Math.max(0.08, (crossing.arrivesAt - now) / (hero ? 1200 : 2200)),
+      );
   }
   private createAttack(a: PendingAttack): SpellVisual {
     const color = a.playerId && this.state.raid?.heroes[a.playerId]?.color;
@@ -567,6 +593,17 @@ export class BattleScene {
         this.attacks.delete(id);
       }
     for (const a of s.pending) {
+      const region = s.viewRegionId;
+      const visible =
+        !s.raid ||
+        (a.role === 'boss'
+          ? a.regionId === region
+          : a.regionId === region || a.targetRegionId === region);
+      if (this.attacks.has(a.id)) {
+        this.attacks.get(a.id)!.root.visible = visible;
+        this.attacks.get(a.id)!.ring.visible = visible;
+      }
+      if (!visible) continue;
       let v = this.attacks.get(a.id);
       if (!v) {
         v = this.createAttack(a);
@@ -580,6 +617,7 @@ export class BattleScene {
       const from = caster.root.position
         .clone()
         .add(new THREE.Vector3(0, (a.role === 'hero' ? 1.45 : 2.6) * caster.root.scale.y, 0));
+      if (a.role === 'hero' && a.regionId && a.regionId !== s.viewRegionId) from.set(-0.7, 3, -6.5);
       let to: THREE.Vector3;
       if (a.role === 'boss') {
         to = reality
@@ -612,7 +650,9 @@ export class BattleScene {
                 new THREE.Plane(new THREE.Vector3(0, 0, 1), -1),
               ) ?? this.boss.root.position.clone())
             : this.boss.root.position.clone().add(new THREE.Vector3(0, 2, 0));
-        if (!reality && a.action !== 'special') {
+        if (a.targetRegionId && a.targetRegionId !== s.viewRegionId)
+          to = new THREE.Vector3(-0.7, 3, -6.5);
+        if (!reality && a.action !== 'special' && a.regionId === a.targetRegionId) {
           const reach = MELEE_RANGE[a.action === 'kick' ? 'kick' : 'punch'];
           const distance = from.distanceTo(to);
           if (distance > reach)
@@ -670,7 +710,9 @@ export class BattleScene {
     this.world.fog = live ? null : this.fog;
     this.arena.root.visible = !live;
     this.shadow.visible = live;
-    this.boss.root.visible = !live || Boolean(s.raid);
+    this.boss.root.visible = s.raid ? s.raid.bossRegionId === s.viewRegionId : !live;
+    this.hero.root.visible =
+      !s.raid || s.raid.heroes[s.viewPlayerId ?? '']?.regionId === s.viewRegionId;
     if (this.view === 'overlook' && !reality) this.cameraGoal.set(3.5, 10, 16);
     else this.cameraGoal.set(0, 6.6, 14.8);
     this.camera.position.lerp(this.cameraGoal, this.reduced ? 1 : 1 - Math.exp(-dt * 4));
@@ -708,7 +750,7 @@ export class BattleScene {
           new THREE.Vector3())
         : new THREE.Vector3(h.fighter.position.x, 0, h.fighter.position.z);
       fighter.root.position.lerp(position, reality ? 1 : 1 - Math.exp(-dt * 22));
-      fighter.root.visible = !h.eliminated;
+      fighter.root.visible = !h.eliminated && h.renderReady && h.regionId === s.viewRegionId;
       this.animateFighter(fighter, 'hero', now, reality, heroView(s, id));
     }
     this.reticle.visible = reality && !s.raid;
@@ -721,6 +763,19 @@ export class BattleScene {
       object.rotation.y = this.reduced ? i : now / 9000 + i;
     });
     this.arena.stars.rotation.y = this.reduced ? 0 : now / 140000;
+    const weather = s.spec.creation?.environment.weather;
+    if (weather && weather !== 'stars' && !this.reduced) {
+      const points = this.arena.stars.geometry.getAttribute('position');
+      const speed =
+        weather === 'rain' ? 5 : weather === 'snow' ? 1.1 : weather === 'embers' ? -0.7 : 0.2;
+      for (let i = 0; i < points.count; i++)
+        points.setY(
+          i,
+          ((((i * 17) % 97) / 8 - (now / 1000) * speed) % 14) +
+            ((now / 1000) * speed - ((i * 17) % 97) / 8 > 0 ? 14 : 0),
+        );
+      points.needsUpdate = true;
+    }
     if (s.phase === 'BREACH_TRANSITION' && !this.reduced) {
       const p = clamp((now - s.phaseAt) / 2600, 0, 1);
       this.arena.portal.scale.setScalar(1 + p * 1.8);
@@ -772,6 +827,15 @@ export class BattleScene {
     );
     this.renderer.domElement.dataset.bossWorld = `${s.fighters.boss.position.x.toFixed(2)},${s.fighters.boss.position.z.toFixed(2)}`;
     this.renderer.domElement.dataset.phase = s.phase;
+    if (s.raid) {
+      this.renderer.domElement.dataset.visibleHeroes = String(
+        Object.values(s.raid.heroes).filter(
+          (h) => h.regionId === s.viewRegionId && h.renderReady && !h.eliminated,
+        ).length,
+      );
+      this.renderer.domElement.dataset.bossRegion = s.raid.bossRegionId;
+      this.renderer.domElement.dataset.bossVisible = String(this.boss.root.visible);
+    }
     this.renderer.domElement.dataset.impactIn = String(
       Math.min(
         99999,

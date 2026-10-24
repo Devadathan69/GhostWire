@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Camera, CameraOff, ScanLine, RotateCcw, Hand, ShieldCheck } from 'lucide-react';
-import type { Action, Movement, Role, Target } from '@ghostwire/shared';
+import type { Action, Movement, Role, Target, HeroDesign } from '@ghostwire/shared';
 import { useTracking } from '../cv/useTracking';
 import type { useCamera } from '../cv/useCamera';
 
@@ -15,6 +15,7 @@ export function CameraPanel({
   mode,
   onTrackingModeChange,
   onMove,
+  design,
 }: {
   camera: ReturnType<typeof useCamera>;
   role: Role;
@@ -26,8 +27,18 @@ export function CameraPanel({
   mode: 'pose' | 'hand';
   onTrackingModeChange: (mode: 'pose' | 'hand') => void;
   onMove: (value: Movement) => void;
+  design?: HeroDesign;
 }) {
-  const tracker = useTracking(camera.stream, role, motion, mode, onAction, onTarget, onMove);
+  const tracker = useTracking(
+    camera.stream,
+    role,
+    motion,
+    mode,
+    onAction,
+    onTarget,
+    onMove,
+    design,
+  );
   useEffect(
     () => onMode(camera.stream && motion ? 'motion' : 'manual'),
     [camera.stream, motion, onMode],

@@ -48,6 +48,10 @@ const hero = await connect(),
   ally = await connect();
 try {
   assert.equal(health.mode, 'cooperative');
+  assert.equal(health.worldExpansion, true);
+  assert.equal(health.creativeForge, true);
+  assert.equal(typeof config.aiConfigured, 'boolean');
+  assert(!('apiKey' in config));
   const encounter = await fetch(`${base}/api/encounters`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -58,6 +62,11 @@ try {
   const joined = await request(ally, 'room:join', { code: room.session.code });
   assert.equal(joined.session.role, 'hero');
   assert.notEqual(joined.session.playerId, room.session.playerId);
+  assert.equal(Object.keys(joined.state.raid.regions).length, 2);
+  assert.notEqual(
+    joined.state.raid.heroes[joined.session.playerId].regionId,
+    joined.state.raid.heroes[room.session.playerId].regionId,
+  );
   let h = room.state,
     a;
   hero.on('battle:snapshot', (s) => (h = s));
@@ -78,6 +87,29 @@ try {
   assert.equal(h.bossHp, a.bossHp);
   assert.equal(Object.keys(h.raid.heroes).length, 2);
   assert(h.raid.targetId);
+  await request(hero, 'world:travel', {
+    regionId: h.raid.heroes[joined.session.playerId].regionId,
+  });
+  await sleep(1400);
+  assert.equal(
+    h.raid.heroes[room.session.playerId].regionId,
+    h.raid.heroes[joined.session.playerId].regionId,
+  );
+  const reinforcement = await connect();
+  try {
+    const expanded = await request(reinforcement, 'room:join', {
+      code: room.session.code,
+      name: 'Public test ally',
+    });
+    assert.equal(expanded.state.phase, 'ARENA');
+    assert.equal(Object.keys(expanded.state.raid.regions).length, 3);
+    assert.equal(expanded.state.raid.maxBossHp, 510);
+    assert.equal(expanded.state.raid.heroes[expanded.session.playerId].renderReady, false);
+    await request(reinforcement, 'battle:render-ready');
+    await request(reinforcement, 'room:leave');
+  } finally {
+    reinforcement.disconnect();
+  }
   console.log(
     JSON.stringify(
       {
@@ -89,6 +121,9 @@ try {
         soloDamageBlocked: true,
         sharedTeamDamage: true,
         bossAI: true,
+        connectedRealms: true,
+        heroTravel: true,
+        liveExpansion: true,
         cameraMode: 'local only',
       },
       null,

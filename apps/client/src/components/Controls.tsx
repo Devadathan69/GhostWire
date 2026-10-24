@@ -1,6 +1,7 @@
 import { ArrowRight, Flame, Shield, Swords, Wind, Zap } from 'lucide-react';
 import {
   COOLDOWNS,
+  GESTURE_LABELS,
   isCombat,
   type Action,
   type BattleState,
@@ -43,30 +44,65 @@ export function Controls({
       </div>
       <div className={`action-controls ${role === 'boss' ? 'boss-controls' : ''}`}>
         {(role === 'hero' ? heroMoves : bossMoves).map((m) => {
+          const ability = state.raid?.heroes[state.viewPlayerId ?? '']?.design?.abilities.find(
+            (a) => a.action === m.action,
+          );
           const remaining = Math.max(0, (state.cooldowns[role][m.action] ?? 0) - state.clock),
             Icon = m.icon;
+          const remoteKick =
+            m.action === 'kick' &&
+            state.raid &&
+            state.raid.heroes[state.viewPlayerId ?? '']?.regionId !== state.raid.bossRegionId;
           return (
             <button
               key={m.action}
               className={`action-button ${m.action === 'special' || m.action === 'power' ? 'power-button' : ''}`}
-              aria-label={m.name}
+              aria-label={ability?.name ?? m.name}
+              title={
+                ability
+                  ? `${ability.description} · ${GESTURE_LABELS[ability.gesture]} · ${ability.damage} damage · ${ability.cooldownMs / 1000}s recharge`
+                  : m.detail
+              }
               onClick={() => onAction(m.action)}
-              disabled={!active || remaining > 0}
+              disabled={!active || remaining > 0 || Boolean(remoteKick)}
             >
               <span
                 className="cooldown-fill"
-                style={{ width: `${(remaining / COOLDOWNS[m.action]) * 100}%` }}
+                style={{
+                  width: `${Math.min(100, (remaining / (ability?.cooldownMs ?? COOLDOWNS[m.action])) * 100)}%`,
+                }}
               />
               <Icon size={21} />
               <div>
-                <strong>{m.name}</strong>
-                <small>{remaining > 0 ? `${(remaining / 1000).toFixed(1)}s` : 'Ready'}</small>
+                <strong>{ability?.name ?? m.name}</strong>
+                <small>
+                  {remoteKick
+                    ? 'Travel to boss'
+                    : remaining > 0
+                      ? `${(remaining / 1000).toFixed(1)}s`
+                      : 'Ready'}
+                </small>
               </div>
-              <kbd>{m.key}</kbd>
+              <kbd>
+                {ability ? (ability.key === ' ' ? 'SPACE' : ability.key.toUpperCase()) : m.key}
+              </kbd>
             </button>
           );
         })}
       </div>
+      {state.raid?.heroes[state.viewPlayerId ?? '']?.design && (
+        <details className="custom-control-guide">
+          <summary>Your power and motion guide</summary>
+          {state.raid.heroes[state.viewPlayerId!].design!.abilities.map((a) => (
+            <p key={a.action}>
+              <strong>{a.name}</strong> · {a.key === ' ' ? 'Space' : a.key.toUpperCase()} ·{' '}
+              {GESTURE_LABELS[a.gesture]}
+              <br />
+              {a.description} · {a.damage} damage · {a.cooldownMs / 1000}s recharge
+            </p>
+          ))}
+        </details>
+      )}
       {(role === 'hero' || state.phase !== 'REALITY') && (
         <MovementPad disabled={!active} onMove={onMove} onStep={onAction} />
       )}

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { defaultHeroDesign, PRESETS } from '@ghostwire/shared';
 import { GestureClassifier, type Landmark } from '../apps/client/src/cv/gestures';
 function neutral(): Landmark[] {
   const p = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.8, visibility: 1 }));
@@ -15,6 +16,23 @@ const calibrate = (c: GestureClassifier) => {
   for (let i = 0; i < 25; i++) c.read(neutral(), i * 70, 'hero');
 };
 describe('motion safeguards', () => {
+  it('maps a configured physical gesture to its selected power and recharge time', () => {
+    const c = new GestureClassifier();
+    calibrate(c);
+    const design = defaultHeroDesign(PRESETS.ember);
+    design.abilities.find((a) => a.action === 'guard')!.gesture = 'special';
+    design.abilities.find((a) => a.action === 'special')!.gesture = 'guard';
+    const p = neutral();
+    p[15].y = 0.1;
+    p[16].y = 0.1;
+    const actions: string[] = [];
+    for (let i = 0; i < 45; i++) {
+      const a = c.read(p, 1800 + i * 70, 'hero', 'pose', design).action;
+      if (a) actions.push(a);
+    }
+    expect(actions.filter((a) => a === 'guard').length).toBeGreaterThanOrEqual(2);
+    expect(actions).not.toContain('special');
+  });
   it('supports hero one-hand jump and pinch-overdrive without turning a fist into a jump', () => {
     const open = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.6, visibility: 1 }));
     open[0] = { x: 0.5, y: 0.8, visibility: 1 };

@@ -72,14 +72,18 @@ export function GameStage({
     state.phase === 'BREACH_TRANSITION' ||
     (state.phase === 'DISCONNECTED' && state.resumePhase === 'REALITY') ||
     (['VICTORY', 'DEFEAT'].includes(state.phase) && state.bossHp <= state.spec.bossMaxHp * 0.5);
-  const bossAttack = state.pending.find((a) => a.role === 'boss');
+  const bossAttack = state.pending.find(
+    (a) => a.role === 'boss' && (!state.raid || a.regionId === state.viewRegionId),
+  );
   return (
     <div
       className={`game-stage theme-${state.spec.arena} ${reality ? 'is-reality' : ''} ${state.phase === 'BREACH_TRANSITION' ? 'is-breaching' : ''}`}
       data-testid="game-stage"
       data-impact-in={Math.min(
         99999,
-        ...state.pending.filter((a) => a.role === 'boss').map((a) => a.resolvesAt - state.clock),
+        ...state.pending
+          .filter((a) => a.role === 'boss' && (!state.raid || a.regionId === state.viewRegionId))
+          .map((a) => a.resolvesAt - state.clock),
       )}
       onPointerMove={(e) => {
         if (role !== 'boss' || !onAim || performance.now() - lastAim.current < 70) return;
@@ -152,6 +156,18 @@ export function GameStage({
             : 'RAID ARENA'}
         </span>
       </div>
+      {state.raid && (
+        <div className="region-stage-label">
+          <strong>{state.raid.regions[state.viewRegionId ?? '']?.name}</strong>
+          <span>
+            {state.raid.bossTransit?.to === state.viewRegionId
+              ? 'RIFT WARNING · BOSS INCOMING'
+              : state.raid.bossRegionId === state.viewRegionId
+                ? 'BOSS IN THIS REALM'
+                : 'BOSS IN ANOTHER REALM · RIFT STRIKES ACTIVE'}
+          </span>
+        </div>
+      )}
       {reality && (
         <div className={`media-label ${videoReady ? 'live' : ''}`}>
           {videoReady ? <Video size={12} /> : <VideoOff size={12} />}{' '}

@@ -30,6 +30,7 @@ export function Squad({
           data-screen={`${h.screen.x},${h.screen.y}`}
           data-downed={h.downedUntil !== null && !h.eliminated}
           data-hp={h.hp}
+          data-region={h.regionId}
         >
           <span className="squad-color" style={{ background: h.color }} />
           <div className="squad-info">
@@ -49,6 +50,11 @@ export function Squad({
                       ? 'AI training ally'
                       : `${h.hp} / ${state.spec.heroMaxHp} HP`}
             </small>
+            <small>
+              {h.design?.name ? `${h.design.name} · ` : ''}
+              {raid.regions[h.regionId]?.name}
+              {h.travel ? ' · Crossing rift…' : ''}
+            </small>
             <div className="squad-hp">
               <span
                 style={{ width: `${(h.hp / state.spec.heroMaxHp) * 100}%`, background: h.color }}
@@ -62,7 +68,11 @@ export function Squad({
             me.hp > 0 && (
               <button
                 className="button secondary small"
-                disabled={Boolean(me.reviving) || state.phase === 'DISCONNECTED'}
+                disabled={
+                  me.regionId !== h.regionId ||
+                  Boolean(me.reviving) ||
+                  state.phase === 'DISCONNECTED'
+                }
                 onClick={() => onRevive(h.id)}
                 aria-label={`Revive ${h.name}`}
               >

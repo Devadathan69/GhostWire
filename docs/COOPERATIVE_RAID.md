@@ -6,7 +6,7 @@ The main game is a 2–4 player cooperative raid against one server-controlled b
 
 Implemented: private identities/tokens per hero, four player slots, leader-only start/rematch, all-player readiness and renderer gates, independent movement/health/defenses/cooldowns, shared boss HP, reconnect pause, departing-player handling, and genuine team outcomes.
 
-Boss health locks when combat starts: preset HP × (3 + 1.25 × extra heroes above two). Emberfall has 360 / 510 / 660 boss HP for two / three / four heroes. Joining after combat starts is disallowed, keeping scaling and ownership stable.
+Boss maximum health is preset HP × (3 + 1.25 × extra heroes above two). Emberfall has 360 / 510 / 660 maximum HP. Reinforcements can now join during Arena/Reality, add their own realm, and scale maximum HP while preserving its current percentage. See [the current upgrade](EXPANDING_WORLDS.md).
 
 ## Phase 2 — Cooperation makes the boss beatable
 
@@ -19,7 +19,7 @@ Boss health locks when combat starts: preset HP × (3 + 1.25 × extra heroes abo
 
 ## Phase 3 — Visible squad and motion
 
-Implemented: all heroes appear in the same 3D scene with distinct colored equipment/name tags, individual movement/combat/downed animations, team shield/burst feedback, squad health and revive controls, mobile joystick/buttons, exact motion guide, and all prior hero gestures.
+Implemented: heroes in the viewed realm appear together with distinct equipment/name tags and individual movement/combat/downed animations. Team HUD, mobile controls and motion guide remain. Each device adds a realm; heroes travel and the boss invades through rifts. Custom loadouts rename/rebind supported powers and recognizers.
 
 At 50% of scaled boss HP the squad enters Reality Breach. Each player's optional **local** camera is their backdrop. All hero positions and locked attack zones are still shared. Camera video stays on its device; no peer video or microphone is needed. Without camera permission, the explicit virtual fallback remains playable. This is video compositing, not room reconstruction or furniture occlusion.
 

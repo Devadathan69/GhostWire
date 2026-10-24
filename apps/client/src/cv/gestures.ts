@@ -1,4 +1,11 @@
-import { COOLDOWNS, type Action, type Movement, type Role, type Target } from '@ghostwire/shared';
+import {
+  COOLDOWNS,
+  type Action,
+  type Movement,
+  type Role,
+  type Target,
+  type HeroDesign,
+} from '@ghostwire/shared';
 export type Landmark = { x: number; y: number; z?: number; visibility?: number };
 export type Reading = {
   action?: Action;
@@ -28,7 +35,13 @@ export class GestureClassifier {
     this.previousAt = 0;
     this.emissions.clear();
   }
-  read(raw: Landmark[], now: number, role: Role, mode: 'pose' | 'hand' = 'pose'): Reading {
+  read(
+    raw: Landmark[],
+    now: number,
+    role: Role,
+    mode: 'pose' | 'hand' = 'pose',
+    design?: HeroDesign,
+  ): Reading {
     const required = mode === 'pose' ? [0, 11, 12, 13, 14, 15, 16] : [0, 4, 8, 9, 12, 16, 20];
     const confidence = required.every((i) => raw[i])
       ? Math.min(...required.map((i) => raw[i].visibility ?? 1))
@@ -151,14 +164,16 @@ export class GestureClassifier {
       this.heldAt = now;
     }
     const instant = ['punch', 'swipe'].includes(candidate);
-    const cooldown = candidate ? COOLDOWNS[candidate as Action] : 650;
+    const mapped =
+      role === 'hero' ? design?.abilities.find((a) => a.gesture === candidate) : undefined;
+    const cooldown = mapped?.cooldownMs ?? (candidate ? COOLDOWNS[candidate as Action] : 650);
     const hold = candidate === 'special' || candidate === 'power' ? 450 : 220;
     if (
       candidate &&
       (instant || now - this.heldAt >= hold) &&
       now - (this.emissions.get(candidate) ?? -10000) >= cooldown
     ) {
-      action = candidate as Action;
+      action = mapped?.action ?? (candidate as Action);
       this.emissions.set(candidate, now);
     }
     return {

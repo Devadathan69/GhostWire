@@ -4,6 +4,8 @@
 
 A browser 3D raid for **2–4 heroes against one AI boss**. Everyone controls a hero. Coordinate attacks to break the boss's shield, combine powers, rescue teammates, and survive Reality Breach together.
 
+**The world expands with your squad:** each device adds a connected realm. Travel between realms, follow boss invasions, or support allies with rift attacks. **Create a world** turns a movie/story/character brief into an editable 3D encounter, using `gpt-6.1-sol` or an explicitly labeled local blueprint. See [upgrade phases and supported generation](docs/EXPANDING_WORLDS.md).
+
 ![Cooperative 3D raid](docs/screenshots/coop-arena.png)
 
 [Cooperative design and phases](docs/COOPERATIVE_RAID.md) · [Exact controls](docs/CONTROLS.md) · [Phone walkthrough](docs/PHONE_TEST.md) · [Submission](SUBMISSION.md) · [Change log](CHANGELOG.md) · [AI assistance](AI_USAGE.md)
@@ -27,7 +29,8 @@ Windows: **Start-Ghostwire.cmd** installs missing dependencies/models, builds, a
 
 - **Soul Aegis blocks all solo damage.** Two different standing heroes must land attacks within 2 seconds to break it. The team then gets a 6-second damage window.
 - **Unity Burst:** pair two heroes' Overdrives within 1.8 seconds for 40 extra team damage. No friendly fire.
-- **One shared boss, personal heroes:** independent health, movement, defenses, powers, and cooldowns. Boss HP scales to the starting team size. Emberfall has 360 / 510 / 660 HP for 2 / 3 / 4 heroes.
+- **One shared boss, connected realms:** each device adds a region with personal movement, health, defenses and powers. Boss HP scales with squad size while preserving its percentage on late joins. Emberfall has 360 / 510 / 660 maximum HP for 2 / 3 / 4 heroes.
+- **Travel and invasions:** watch/travel using the world map. Crossing takes 1.2 seconds standing still; gates recharge for 6 seconds. The boss announces invasions for 2.2 seconds. Its attacks affect only its current realm. Remote Strike is a weaker 4-damage rift bolt; Overdrive retains its power. Kick and revives require the same realm.
 - **Read the boss:** it chooses threat targets, follows the squad, locks marked damage zones, and periodically marks every standing hero. Spread out or time a defense. Attack during recovery for bonus damage.
 - **Rescue allies:** downed heroes have 20 seconds to be saved. Move close and press **F** or their **Revive** button; stay still for 3 seconds. Movement, damage, or another action interrupts. A revive restores 40% HP with brief protection.
 - **Reality Breach:** at half scaled boss HP, every hero enters the camera-backed final phase. Each player's optional local video becomes their own backdrop; shared heroes and attack zones stay synchronized. No camera still gives a clearly labeled playable virtual fallback.
@@ -35,18 +38,18 @@ Windows: **Start-Ghostwire.cmd** installs missing dependencies/models, builds, a
 
 ## Controls
 
-All players use the same hero controls. All actions have touch buttons. See [the complete guide](docs/CONTROLS.md) or **How to play** for exact timings and hand-mode alternatives.
+Presets use the controls below. Custom heroes show their power names/keys on buttons and exact gesture mappings in **Your power and motion guide**. All actions have touch buttons. See [the complete guide](docs/CONTROLS.md) or **How to play** for timings and hand-mode alternatives.
 
-| Action | Keyboard / touch | Body gesture |
-| --- | --- | --- |
-| Walk / run | WASD or arrows; Shift / joystick + RUN | Lean left/right; step closer/farther. Greater calibrated shoulder width runs. |
-| Strike | J | Quick arm extension, then neutral |
-| Kick | I | Lift a knee above its hip with hips/knees visible |
-| Guard | K | Cross wrists near chest for ¼ second |
-| Evade | L | Small duck for ¼ second |
-| Jump | E | One hand above head, other below shoulder, for ¼ second |
-| Overdrive | Space | Both hands above head for ½ second |
-| Revive ally | F / their Revive button | Use keyboard/touch; remain still for 3 seconds |
+| Action      | Keyboard / touch                       | Body gesture                                                                  |
+| ----------- | -------------------------------------- | ----------------------------------------------------------------------------- |
+| Walk / run  | WASD or arrows; Shift / joystick + RUN | Lean left/right; step closer/farther. Greater calibrated shoulder width runs. |
+| Strike      | J                                      | Quick arm extension, then neutral                                             |
+| Kick        | I                                      | Lift a knee above its hip with hips/knees visible                             |
+| Guard       | K                                      | Cross wrists near chest for ¼ second                                          |
+| Evade       | L                                      | Small duck for ¼ second                                                       |
+| Jump        | E                                      | One hand above head, other below shoulder, for ¼ second                       |
+| Overdrive   | Space                                  | Both hands above head for ½ second                                            |
+| Revive ally | F / their Revive button                | Use keyboard/touch; remain still for 3 seconds                                |
 
 Camera capture requires an explicit click and HTTPS (or same-device localhost). Hold neutral for about 1.3 seconds to calibrate. One hand mode supports open-palm movement, swipe Strike, fist Guard, pinch Overdrive, and index-up Jump. Tracking loss stops movement; manual input stays available.
 
@@ -56,7 +59,7 @@ Windows: double-click **Start-Phone-Test.cmd** or run `npm run phone:start` afte
 
 The temporary public link works while the laptop stays awake and online. A phone's localhost points to the phone itself. Plain LAN HTTP supports manual controls, while cameras need HTTPS. The server serves UI and Socket.IO together. For permanent hosting, use a long-running Node process behind HTTPS with WebSocket upgrades. Configure `PUBLIC_URL` for the canonical invite origin and `ALLOWED_ORIGINS` only for additional trusted frontends.
 
-Run one server instance: rooms live in memory and restarts end active raids. Short disconnects pause the squad up to 30 seconds. Private tokens resume individual heroes; the squad stays paused until the returning 3D view is ready. On timeout the missing hero is removed; squads with at least two connected heroes can continue. Fewer teammates produce a team failure. No room can be joined after combat starts.
+Run one server instance: rooms live in memory and restarts end raids. Disconnects pause the squad up to 30 seconds; private tokens resume heroes after graphics are ready. Timed-out heroes are removed; fewer than two teammates produces failure. Reinforcements may join during Arena/Reality while fewer than four total hero slots are used. Their device adds a realm and waits for its own graphics without pausing the fight.
 
 Optional container recipe (not executed here):
 
@@ -67,7 +70,9 @@ docker run --rm -p 3001:3001 --env-file .env ghostwire
 
 ## Optional encounter director
 
-Copy `.env.example` to `.env` and set server-only `OPENAI_API_KEY` and optionally `OPENAI_MODEL`. Curated worlds bypass the API. Edited story prompts use Responses API Structured Outputs with Zod validation and a bounded timeout; no key/refusal/error produces a visibly labeled curated fallback. Generated configuration selects only supported mechanics/colors, never executable code or remote assets. Requests use `store: false`. Live API output needs an actual configured key and remains an external check.
+Copy `.env.example` to `.env`, set server-only `OPENAI_API_KEY`, leave `OPENAI_MODEL=gpt-6.1-sol`, then restart. The API project needs model access. **Create a world → Generate with AI** uses Responses Structured Outputs with strict validation, a 75-second timeout and an 8,000-token output budget. Missing credentials/API failures show an error; choose **Build local blueprint** explicitly for no-key creation. Preview/edit heroes, boss, environment, powers, keys and recognized gestures, then create a lobby. Members choose their hero before readying up. Generated designs use procedural 3D parts and supported animations. [Creator details and limits](docs/EXPANDING_WORLDS.md).
+
+Curated worlds bypass the API. The original simple story director retains its visibly labeled preset fallback. Keys stay on the server; requests use `store: false`. Live generation is unverified until a real key is configured; mocks verify integration, not account access.
 
 ## Verification
 

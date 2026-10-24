@@ -33,11 +33,13 @@ export function createSpell(spec: BattleSpec, a: PendingAttack): SpellVisual {
   const color = a.role === 'hero' ? spec.primaryColor : spec.secondaryColor;
   const kind =
     a.role === 'hero'
-      ? a.action === 'special'
-        ? spec.heroPower
-        : a.action === 'kick'
-          ? 'kick'
-          : 'blade'
+      ? a.regionId && a.targetRegionId && a.regionId !== a.targetRegionId && a.action === 'punch'
+        ? 'fire_orb'
+        : a.action === 'special'
+          ? (a.effect ?? spec.heroPower)
+          : a.action === 'kick'
+            ? 'kick'
+            : 'blade'
       : a.attackId!;
   const mat = luminous(color, 2);
   const ring = mesh(

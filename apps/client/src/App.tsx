@@ -25,6 +25,8 @@ import { ControlsGuide } from './components/ControlsGuide';
 import { RaidHealth, Squad } from './components/Squad';
 import { useMovement } from './game/useMovement';
 import { audioEnabled, setAudio, unlockAudio } from './game/audio';
+import { WorldMap } from './components/WorldMap';
+import { Forge } from './components/Forge';
 
 const worlds = [
   ['ember', '◈ Emberfall', 'FIRE & THUNDER'],
@@ -35,7 +37,21 @@ const noTarget = () => {};
 export default function App() {
   const net = useSession(),
     camera = useCamera(),
-    { state, session } = net;
+    { state: receivedState, session } = net;
+  const [watchRegion, setWatchRegion] = useState<string | null>(null);
+  const state = receivedState
+    ? {
+        ...receivedState,
+        viewRegionId:
+          watchRegion && receivedState.raid?.regions[watchRegion]
+            ? watchRegion
+            : receivedState.viewRegionId,
+      }
+    : null;
+  useEffect(
+    () => setWatchRegion(null),
+    [receivedState?.raid?.heroes[session?.playerId ?? '']?.regionId, session?.code],
+  );
   const [tab, setTab] = useState(
     new URLSearchParams(location.search).has('join') ? 'join' : 'create',
   );
@@ -63,6 +79,9 @@ export default function App() {
     isCombat(state.phase) &&
     local &&
     local.hp > 0 &&
+    local.renderReady &&
+    state.viewRegionId === local.regionId &&
+    !local.travel &&
     !local.eliminated &&
     net.connected &&
     !help,
@@ -119,12 +138,21 @@ export default function App() {
         (e.target as HTMLElement).closest('input,textarea,select,[role="dialog"]')
       )
         return;
-      const action = (
-        { j: 'punch', i: 'kick', k: 'guard', l: 'dodge', e: 'jump', ' ': 'special' } as Record<
-          string,
-          Action
-        >
-      )[e.key.toLowerCase()];
+      const action =
+        status.current.local?.design?.abilities.find((a) => a.key === e.key.toLowerCase())
+          ?.action ??
+        (!status.current.local?.design
+          ? (
+              {
+                j: 'punch',
+                i: 'kick',
+                k: 'guard',
+                l: 'dodge',
+                e: 'jump',
+                ' ': 'special',
+              } as Record<string, Action>
+            )[e.key.toLowerCase()]
+          : undefined);
       if (action) {
         e.preventDefault();
         onAction(action);
@@ -134,7 +162,10 @@ export default function App() {
         const { state: s, local: h } = status.current;
         if (!s?.raid || !h) return;
         const down = Object.values(s.raid.heroes)
-          .filter((v) => v.downedUntil !== null && !v.eliminated && v.connected)
+          .filter(
+            (v) =>
+              v.regionId === h.regionId && v.downedUntil !== null && !v.eliminated && v.connected,
+          )
           .sort((a, b) => {
             const distance = (v: typeof a) =>
               s.phase === 'REALITY'
@@ -178,7 +209,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, ...(preset ? { preset } : {}) }),
-        signal: AbortSignal.timeout(18000),
+        signal: AbortSignal.timeout(55000),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not prepare the raid.');
@@ -236,6 +267,7 @@ export default function App() {
       mode={mode}
       onTrackingModeChange={setMode}
       onMove={movement.onMotion}
+      design={local?.design}
     />
   );
   return (
@@ -366,6 +398,9 @@ export default function App() {
                 <button className={tab === 'join' ? 'active' : ''} onClick={() => setTab('join')}>
                   Join a squad
                 </button>
+                <button className={tab === 'forge' ? 'active' : ''} onClick={() => setTab('forge')}>
+                  Create a world
+                </button>
               </div>
               <label className="field-label" htmlFor="hero-name">
                 YOUR HERO NAME
@@ -426,6 +461,21 @@ export default function App() {
                     optional.
                   </p>
                 </>
+              ) : tab === 'forge' ? (
+                <Forge
+                  connected={net.connected}
+                  onCreate={async (encounterId) => {
+                    unlockAudio();
+                    net.accept(
+                      await request<RoomReply>('room:create', {
+                        encounterId,
+                        practice: false,
+                        ...(name.trim() ? { name: name.trim() } : {}),
+                      }),
+                    );
+                    window.scrollTo(0, 0);
+                  }}
+                />
               ) : (
                 <form
                   onSubmit={(e) => {
@@ -546,7 +596,11 @@ export default function App() {
                 <div className="encounter-meta">
                   <span className="eyebrow">COOPERATIVE RAID BRIEF</span>
                   <span className="source-chip">
-                    {state.source === 'ai' ? 'AI DIRECTED' : 'CURATED ENCOUNTER'}
+                    {state.source === 'ai'
+                      ? 'AI DIRECTED'
+                      : state.source === 'custom'
+                        ? 'CUSTOM BLUEPRINT'
+                        : 'CURATED ENCOUNTER'}
                   </span>
                 </div>
                 <RiftArtwork
@@ -642,6 +696,33 @@ export default function App() {
                       ? 'Echo is an AI teammate. The same teamwork rules apply.'
                       : `${Object.keys(state.raid!.heroes).length}/4 heroes joined. At least two connected, ready heroes are required.`}
                   </p>
+                  {state.spec.creation && (
+                    <label className="field-label">
+                      CHOOSE YOUR HERO
+                      <select
+                        className="raid-input"
+                        aria-label="Choose your hero"
+                        value={state.spec.creation.heroes.findIndex(
+                          (h) => h.name === local.design?.name,
+                        )}
+                        onChange={(e) =>
+                          void perform(() =>
+                            request('hero:design', { index: Number(e.target.value) }),
+                          )
+                        }
+                      >
+                        {state.spec.creation.heroes.map((h, i) => (
+                          <option key={i} value={i}>
+                            {h.name} · {h.appearance.archetype}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <p className="source-note">
+                    Every connected device adds its own realm. The boss can invade any realm. Travel
+                    through rifts to fight together.
+                  </p>
                   <button
                     className={`button ${local.ready ? 'secondary' : 'primary'} full`}
                     disabled={!net.connected}
@@ -686,6 +767,17 @@ export default function App() {
           ) : (
             <>
               <RaidHealth state={state} />
+              <WorldMap
+                state={state}
+                invite={net.joinUrl}
+                onView={setWatchRegion}
+                onTravel={(id) =>
+                  void perform(async () => {
+                    await request('world:travel', { regionId: id });
+                    setWatchRegion(null);
+                  })
+                }
+              />
               <div className="battle-layout">
                 <div className="battle-main">
                   <GameStage

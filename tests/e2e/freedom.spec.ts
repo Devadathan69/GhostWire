@@ -43,7 +43,14 @@ test('free walking, sprint, jumping, kicking, powers and exact instructions rema
   await page.keyboard.up('a');
   await page.keyboard.up('Shift');
   await page.keyboard.press('e');
-
+  if (!(await page.getByRole('button', { name: 'Kick', exact: true }).isEnabled())) {
+    await page.getByText('World map · travel & invites', { exact: true }).click();
+    const bossRealm = page
+      .locator('.realm-card')
+      .filter({ has: page.locator('.eyebrow').filter({ hasText: ' · BOSS' }) });
+    await bossRealm.getByRole('button', { name: 'Travel here', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Kick', exact: true })).toBeEnabled();
+  }
   await page.getByRole('button', { name: 'Kick', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Kick', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'How to play', exact: true }).click();

@@ -26,7 +26,13 @@ Cooldowns: Strike **0.44s**, Kick **0.95s**, Guard **1.45s**, Evade **1.7s**, Ju
 
 Strike and Kick need striking distance in the arena; **MOVE CLOSER** identifies a range miss. Overdrive reaches across the arena: Emberfall uses thunder strike, Hollow Moon uses moon shield, and Tempest uses flame slash. Moon shield also grants temporary guarding after resolving.
 
-## Rescue a teammate
+## Connected realms and custom powers
+
+Every human device adds a realm. Use **Watch** on a world-map card to view it; your controls pause while watching away from your hero. **Return view to my hero** restores controls. **Travel here** takes 1.2 seconds standing still, grants one second of arrival protection and recharges for 6 seconds. Movement/damage cancels travel; finish attacks first. Kick and revives require the boss/teammate's realm. Across realms, Strike casts a 4-damage rift bolt with a 0.55-second windup; Overdrive retains its damage and 1.1-second windup. Both still need teamwork to break Aegis.
+
+For created heroes, **the actual keys and names are on your power buttons**. Open **Your power and motion guide** for each selected gesture, description, damage and recharge. The creator may map any of the six physical recognizers to a different action. Return to neutral between motions. Body mode supports all six recognizers. One-hand mode supports swipe, fist, pinch and index-up, so use touch/keyboard for powers mapped to duck or knee lift. WASD/arrows, Shift and F remain reserved.
+
+## Rescue a teammate in your realm
 
 The boss briefly delays its next cast when a hero falls, creating a rescue opening. Everyone controls a hero. Press **F** to attempt revival of the nearest downed teammate, or tap that teammate's **Revive** button in the squad panel. Get within 2.6 world units (or the corresponding screen distance in Reality), then stay still for 3 seconds. Movement, another action, or damage interrupts. Reviving restores 40% health and 2 seconds of protection. Downed heroes cannot act and have 20 seconds before elimination. Eliminated heroes spectate and share the team's result.
 

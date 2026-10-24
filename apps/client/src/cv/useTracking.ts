@@ -5,6 +5,7 @@ import {
   type Movement,
   type Role,
   type Target,
+  type HeroDesign,
 } from '@ghostwire/shared';
 import { GestureClassifier, type Landmark } from './gestures';
 
@@ -16,12 +17,13 @@ export function useTracking(
   onAction: (a: Action) => void,
   onTarget: (t: Target) => void,
   onMove: (value: Movement) => void,
+  design?: HeroDesign,
 ) {
   const video = useRef<HTMLVideoElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
   const classifier = useRef(new GestureClassifier());
-  const callbacks = useRef({ onAction, onTarget, onMove });
-  callbacks.current = { onAction, onTarget, onMove };
+  const callbacks = useRef({ onAction, onTarget, onMove, design });
+  callbacks.current = { onAction, onTarget, onMove, design };
   const [status, setStatus] = useState('Camera off');
   const [calibrated, setCalibrated] = useState(false);
   const [gesture, setGesture] = useState('Neutral');
@@ -97,6 +99,7 @@ export function useTracking(
                 performance.now(),
                 role,
                 mode,
+                callbacks.current.design,
               );
               setCalibrated(reading.calibrated);
               callbacks.current.onMove(

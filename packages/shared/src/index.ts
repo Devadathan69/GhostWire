@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { CreationSchema, type HeroDesign } from './creative';
+export * from './creative';
 
 export const BattleSpecSchema = z
   .object({
@@ -19,9 +21,11 @@ export const BattleSpecSchema = z
     bossMaxHp: z.number().int().min(80).max(150),
     heroMaxHp: z.number().int().min(70).max(120),
     phaseTwoAt: z.literal(0.5),
+    creation: CreationSchema.optional(),
   })
   .strict();
 export type BattleSpec = z.infer<typeof BattleSpecSchema>;
+export const CreativeEncounterSchema = BattleSpecSchema.required({ creation: true });
 export const PRESETS: Record<string, BattleSpec> = {
   ember: {
     version: 1,
@@ -181,11 +185,14 @@ export type PendingAttack = {
   worldTarget?: WorldPosition;
   playerId?: string;
   volley?: number;
+  regionId?: string;
+  targetRegionId?: string;
+  effect?: import('./creative').Ability['effect'];
 };
 export type BattleState = {
   code: string;
   spec: BattleSpec;
-  source: 'ai' | 'preset';
+  source: 'ai' | 'preset' | 'custom';
   sourceNote: string;
   practice: boolean;
   phase: Phase;
@@ -216,6 +223,7 @@ export type BattleState = {
   renderDeadline: number | null;
   raid?: RaidData;
   viewPlayerId?: string;
+  viewRegionId?: string;
 };
 export type Session = { code: string; role: Role; token: string; playerId?: string };
 export const MAX_RAID_PLAYERS = 4;
@@ -239,6 +247,10 @@ export type RaidHero = Player & {
   damage: number;
   revives: number;
   threat: number;
+  design?: HeroDesign;
+  regionId: string;
+  travel: { from: string; to: string; arrivesAt: number; origin: WorldPosition } | null;
+  travelReadyAt: number;
   reviving: { targetId: string; startedAt: number; origin: WorldPosition; screen: Target } | null;
 };
 export type RaidData = {
@@ -255,6 +267,18 @@ export type RaidData = {
   targetId: string | null;
   limit: number;
   endReason: string;
+  regions: Record<string, RaidRegion>;
+  bossRegionId: string;
+  bossTransit: { from: string; to: string; arrivesAt: number; startedAt: number } | null;
+  nextRoamAt: number;
+};
+export type RaidRegion = {
+  id: string;
+  ownerId: string;
+  name: string;
+  color: string;
+  index: number;
+  createdAt: number;
 };
 export type RaidState = BattleState & { raid: RaidData };
 /** Project the shared raid onto this hero's existing input and rendering contract. */
@@ -264,6 +288,7 @@ export function heroView(s: BattleState, playerId?: string): BattleState {
   return {
     ...s,
     viewPlayerId: hero.id,
+    viewRegionId: hero.regionId,
     spec: { ...s.spec, bossMaxHp: s.raid!.maxBossHp },
     heroHp: hero.hp,
     heroScreen: hero.screen,

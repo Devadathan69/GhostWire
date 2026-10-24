@@ -16,13 +16,24 @@ import {
 import { createState, setPhase } from './combatEngine';
 
 const zero = (): Movement => ({ x: 0, z: 0, sprint: false });
-export const alive = (h: RaidHero) => h.connected && !h.eliminated && h.hp > 0;
+export const alive = (h: RaidHero) => h.connected && h.renderReady && !h.eliminated && h.hp > 0;
 export function addHero(s: RaidState, id: string, name: string, bot = false) {
   const slot = Math.max(
     0,
     RAID_COLORS.findIndex((color) => !Object.values(s.raid.heroes).some((h) => h.color === color)),
   );
   const angle = Math.PI * 0.25 + slot * Math.PI * 0.5;
+  const regionId = bot ? s.raid.bossRegionId : `realm-${id}`;
+  if (!bot)
+    s.raid.regions[regionId] = {
+      id: regionId,
+      ownerId: id,
+      name: `${name}'s realm`,
+      color: RAID_COLORS[slot % 4],
+      index: slot,
+      createdAt: s.clock,
+    };
+  const designs = s.spec.creation?.heroes;
   s.raid.heroes[id] = {
     id,
     name,
@@ -51,6 +62,10 @@ export function addHero(s: RaidState, id: string, name: string, bot = false) {
     revives: 0,
     threat: 0,
     reviving: null,
+    regionId,
+    travel: null,
+    travelReadyAt: 0,
+    ...(designs ? { design: structuredClone(designs[slot % designs.length]) } : {}),
   };
 }
 export function createRaid(
@@ -76,6 +91,10 @@ export function createRaid(
       targetId: null,
       limit: 180000,
       endReason: '',
+      regions: {},
+      bossRegionId: `realm-${hostId}`,
+      bossTransit: null,
+      nextRoamAt: 14000,
     },
   };
   s.fighters.boss.position = { x: 0, z: -0.5 };
@@ -131,6 +150,7 @@ export function moveHero(s: RaidState, id: string, movement: Movement): string |
   const h = s.raid.heroes[id];
   if (!isCombat(s.phase) || !h || !alive(h)) return 'Movement is paused or your hero is down.';
   const length = Math.max(1, Math.hypot(movement.x, movement.z));
+  if (Math.hypot(movement.x, movement.z) > 0.01) h.travel = null;
   h.fighter.movement = { x: movement.x / length, z: movement.z / length, sprint: movement.sprint };
   h.fighter.moveAt = s.clock;
   return null;
@@ -139,13 +159,17 @@ export function heroIntent(s: RaidState, id: string, action: Action): string | n
   const h = s.raid.heroes[id];
   if (!isCombat(s.phase) || !h || !alive(h)) return 'Combat is paused or your hero is down.';
   if (['swipe', 'power'].includes(action)) return 'The boss is controlled by the raid AI.';
+  if (action === 'kick' && h.regionId !== s.raid.bossRegionId)
+    return 'Travel to the boss realm to use a close-range kick.';
+  if (h.travel) return 'Stand still until your rift crossing completes.';
   if ((h.cooldowns[action] ?? 0) > s.clock) return 'Move is recharging.';
   if (
     ['punch', 'kick', 'special', 'guard'].includes(action) &&
     s.pending.some((a) => a.playerId === id && a.role === 'hero')
   )
     return 'Finish your current attack first.';
-  h.cooldowns[action] = s.clock + COOLDOWNS[action];
+  const ability = h.design?.abilities.find((a) => a.action === action);
+  h.cooldowns[action] = s.clock + (ability?.cooldownMs ?? COOLDOWNS[action]);
   h.reviving = null;
   if (['left', 'right', 'forward', 'back'].includes(action)) {
     const x = action === 'left' ? -1 : action === 'right' ? 1 : 0;
@@ -162,7 +186,9 @@ export function heroIntent(s: RaidState, id: string, action: Action): string | n
   else if (action === 'jump') h.jumpUntil = s.clock + 800;
   else {
     h.guardUntil = 0;
-    const warning = action === 'special' ? 1100 : action === 'kick' ? 300 : 170;
+    const remote = h.regionId !== s.raid.bossRegionId;
+    if (remote && action === 'kick') return 'Travel to the boss realm to use a close-range kick.';
+    const warning = action === 'special' ? 1100 : remote ? 550 : action === 'kick' ? 300 : 170;
     s.pending.push({
       id: nextId(s),
       playerId: id,
@@ -170,7 +196,13 @@ export function heroIntent(s: RaidState, id: string, action: Action): string | n
       action,
       startedAt: s.clock,
       resolvesAt: s.clock + warning,
-      damage: action === 'special' ? 32 : action === 'kick' ? 12 : 8,
+      damage:
+        remote && action !== 'special'
+          ? 4
+          : (ability?.damage ?? (action === 'special' ? 32 : action === 'kick' ? 12 : 8)),
+      regionId: h.regionId,
+      targetRegionId: s.raid.bossRegionId,
+      effect: ability?.effect,
       target: { x: 0.5, y: 0.35 },
       radius: 1,
     });
@@ -182,12 +214,38 @@ function nextId(s: RaidState) {
   return s.tick * 100 + (s.pending.length ? Math.max(...s.pending.map((a) => a.id % 100)) + 1 : 0);
 }
 function near(s: RaidState, a: RaidHero, b: RaidHero, range = 2.6) {
+  if (a.regionId !== b.regionId || a.travel || b.travel) return false;
   return s.phase === 'REALITY'
     ? Math.hypot(a.screen.x - b.screen.x, (a.screen.y - b.screen.y) * 0.5625) < range * 0.055
     : Math.hypot(
         a.fighter.position.x - b.fighter.position.x,
         a.fighter.position.z - b.fighter.position.z,
       ) < range;
+}
+export function travelHero(s: RaidState, id: string, regionId: string): string | null {
+  const h = s.raid.heroes[id];
+  if (!isCombat(s.phase) || !h || !alive(h))
+    return 'Travel is available while your hero is standing in combat.';
+  if (!s.raid.regions[regionId] || regionId === h.regionId)
+    return 'Choose another connected realm.';
+  if (h.travel || h.travelReadyAt > s.clock) return 'Your rift gate is recharging.';
+  if (s.pending.some((a) => a.playerId === id))
+    return 'Finish your current attack before traveling.';
+  h.reviving = null;
+  h.fighter.movement = zero();
+  h.travel = {
+    from: h.regionId,
+    to: regionId,
+    arrivesAt: s.clock + 1200,
+    origin: { ...h.fighter.position },
+  };
+  return null;
+}
+export function scaleForLateJoin(s: RaidState) {
+  const fraction = s.bossHp / s.raid.maxBossHp;
+  const count = Object.values(s.raid.heroes).filter((h) => !h.eliminated).length;
+  s.raid.maxBossHp = Math.round(s.spec.bossMaxHp * (3 + Math.max(0, count - 2) * 1.25));
+  s.bossHp = Math.round(fraction * s.raid.maxBossHp);
 }
 export function reviveHero(s: RaidState, id: string, targetId: string): string | null {
   const h = s.raid.heroes[id],
@@ -219,6 +277,7 @@ function down(s: RaidState, h: RaidHero) {
   h.hp = 0;
   h.downedUntil = s.clock + 20000;
   h.reviving = null;
+  h.travel = null;
   h.fighter.movement = zero();
   // A two-hero squad needs a real opportunity to finish its three-second rescue.
   s.raid.nextAttackAt = Math.max(s.raid.nextAttackAt, s.clock + 4500);
@@ -236,10 +295,16 @@ function finish(s: RaidState, victory: boolean, reason: string) {
 function heroHit(s: RaidState, a: PendingAttack) {
   const h = s.raid.heroes[a.playerId ?? ''];
   if (!h || !alive(h)) return;
+  if (s.raid.bossTransit || (a.targetRegionId && a.targetRegionId !== s.raid.bossRegionId)) {
+    log(s, 'hero', 'hit', 'BOSS SHIFTED · RETARGET', h.id, 0, a.action);
+    return;
+  }
+  const remote = h.regionId !== s.raid.bossRegionId;
   const p = h.fighter.position,
     b = s.fighters.boss.position;
   if (
     s.phase === 'ARENA' &&
+    !remote &&
     a.action !== 'special' &&
     Math.hypot(p.x - b.x, p.z - b.z) > MELEE_RANGE[a.action === 'kick' ? 'kick' : 'punch']
   ) {
@@ -264,7 +329,7 @@ function heroHit(s: RaidState, a: PendingAttack) {
   s.stats.strikes++;
   log(s, 'hero', 'hit', open ? 'TEAM DAMAGE' : 'AEGIS · NEED ALLY', h.id, damage, a.action);
   if (a.action === 'special') {
-    if (s.spec.heroPower === 'moon_shield') h.guardUntil = s.clock + 2200;
+    if ((a.effect ?? s.spec.heroPower) === 'moon_shield') h.guardUntil = s.clock + 2200;
     const last = s.raid.lastSpecial;
     if (open && last && last.playerId !== h.id && s.clock - last.at <= 1800) {
       const burst = 40;
@@ -279,6 +344,7 @@ function heroHit(s: RaidState, a: PendingAttack) {
 }
 function bossHit(s: RaidState, a: PendingAttack, hitHeroes: Set<string>) {
   for (const h of Object.values(s.raid.heroes).filter(alive)) {
+    if (a.regionId && h.regionId !== a.regionId) continue;
     const hitKey = `${a.volley ?? a.id}:${h.id}`;
     if (hitHeroes.has(hitKey)) continue;
     const p = h.fighter.position;
@@ -296,6 +362,7 @@ function bossHit(s: RaidState, a: PendingAttack, hitHeroes: Set<string>) {
     if (damage) {
       h.hp = Math.max(0, h.hp - damage);
       h.reviving = null;
+      h.travel = null;
       if (!h.hp) down(s, h);
     }
     if (evaded) s.stats.dodged++;
@@ -305,7 +372,40 @@ function bossHit(s: RaidState, a: PendingAttack, hitHeroes: Set<string>) {
   s.recoveryUntil = s.clock + 1500;
 }
 function bossAI(s: RaidState) {
-  const heroes = Object.values(s.raid.heroes).filter(alive);
+  const all = Object.values(s.raid.heroes).filter(alive);
+  if (s.raid.bossTransit) {
+    s.fighters.boss.movement = zero();
+    if (s.clock >= s.raid.bossTransit.arrivesAt) {
+      s.raid.bossRegionId = s.raid.bossTransit.to;
+      s.raid.bossTransit = null;
+      s.fighters.boss.position = { x: 0, z: -0.5 };
+      s.raid.nextAttackAt = s.clock + 1800;
+      s.raid.nextRoamAt = s.clock + 13000;
+    }
+    return;
+  }
+  const heroes = all.filter((h) => h.regionId === s.raid.bossRegionId && !h.travel);
+  if (
+    (s.clock >= s.raid.nextRoamAt || !heroes.length) &&
+    !s.pending.some((a) => a.role === 'boss')
+  ) {
+    const destinations = [...new Set(all.map((h) => h.regionId))].filter(
+      (id) => id !== s.raid.bossRegionId,
+    );
+    if (destinations.length) {
+      const to = destinations[s.raid.aiTurn % destinations.length];
+      s.raid.bossTransit = {
+        from: s.raid.bossRegionId,
+        to,
+        startedAt: s.clock,
+        arrivesAt: s.clock + 2200,
+      };
+      s.fighters.boss.movement = zero();
+      s.raid.targetId = null;
+      log(s, 'boss', 'travel', `BOSS INVADING ${s.raid.regions[to].name.toUpperCase()}`);
+      return;
+    }
+  }
   if (!heroes.length) return;
   const target = heroes.slice().sort((a, b) => b.threat - a.threat || a.id.localeCompare(b.id))[0];
   s.raid.targetId = target.id;
@@ -321,6 +421,7 @@ function bossAI(s: RaidState) {
   const wave = s.raid.aiTurn % 4 === 0;
   const attackId = s.spec.bossAttacks[s.raid.aiTurn % 2];
   const attack = ATTACKS[attackId];
+  const custom = s.spec.creation?.boss.attacks.find((a) => a.mechanic === attackId);
   for (const mark of wave ? heroes : [target]) {
     s.pending.push({
       id: nextId(s),
@@ -328,10 +429,11 @@ function bossAI(s: RaidState) {
       action: 'power',
       attackId,
       startedAt: s.clock,
-      resolvesAt: s.clock + (wave ? 1600 : attack.warning + 300),
-      damage: wave ? 18 : attack.damage + 3,
+      resolvesAt: s.clock + (wave ? 1600 : (custom?.warning ?? attack.warning + 300)),
+      damage: wave ? 18 : (custom?.damage ?? attack.damage + 3),
+      regionId: s.raid.bossRegionId,
       volley: s.raid.aiTurn,
-      radius: wave ? 0.17 : attack.radius * 0.8,
+      radius: wave ? 0.17 : (custom?.radius ?? attack.radius * 0.8),
       target: { ...mark.screen },
       worldTarget: { ...mark.fighter.position },
     });
@@ -340,7 +442,9 @@ function bossAI(s: RaidState) {
     s,
     'boss',
     'power',
-    wave ? 'CATACLYSM · SPREAD OUT' : `${attack.name.toUpperCase()} · ${target.name}`,
+    wave
+      ? 'CATACLYSM · SPREAD OUT'
+      : `${(custom?.name ?? attack.name).toUpperCase()} · ${target.name}`,
   );
   for (const h of heroes) h.threat *= 0.4;
   s.raid.nextAttackAt = s.clock + (s.phase === 'REALITY' ? 2800 : 3400);
@@ -349,6 +453,11 @@ function trainingAlly(s: RaidState, h: RaidHero) {
   const downed = Object.values(s.raid.heroes).find(
     (v) => v.id !== h.id && v.downedUntil !== null && !v.eliminated,
   );
+  const destination = downed?.regionId ?? s.raid.bossRegionId;
+  if (h.regionId !== destination) {
+    if (!h.travel) travelHero(s, h.id, destination);
+    return;
+  }
   const p = h.fighter.position,
     target = downed?.fighter.position ?? s.fighters.boss.position;
   const distance = Math.hypot(p.x - target.x, p.z - target.z);
@@ -411,6 +520,17 @@ export function tickRaid(s: RaidState, delta: number) {
       h.downedUntil = null;
     }
     if (!alive(h)) continue;
+    if (h.travel) {
+      if (s.clock >= h.travel.arrivesAt) {
+        h.regionId = h.travel.to;
+        h.travel = null;
+        h.travelReadyAt = s.clock + 6000;
+        h.fighter.position = { x: -3, z: 2 };
+        h.screen = { x: 0.3, y: 0.76 };
+        h.immuneUntil = s.clock + 1000;
+        log(s, 'hero', 'travel', 'RIFT CROSSED', h.id);
+      } else continue;
+    }
     if (h.bot) trainingAlly(s, h);
     if (s.clock - h.fighter.moveAt > 350) h.fighter.movement = zero();
     const m = h.fighter.movement,
@@ -429,7 +549,7 @@ export function tickRaid(s: RaidState, delta: number) {
       h.fighter.position.z += (m.z * speed * dt) / 1000;
       const p = h.fighter.position,
         distance = Math.hypot(p.x - b.position.x, p.z - b.position.z);
-      if (distance < 1.8) {
+      if (h.regionId === s.raid.bossRegionId && !s.raid.bossTransit && distance < 1.8) {
         const angle = Math.atan2(p.z - b.position.z, p.x - b.position.x);
         p.x = b.position.x + Math.cos(angle) * 1.8;
         p.z = b.position.z + Math.sin(angle) * 1.8;

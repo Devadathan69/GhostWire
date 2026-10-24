@@ -7,6 +7,10 @@ import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
 import {
   IntentSchema,
+  ForgeBriefSchema,
+  CreativeEncounterSchema,
+  validateCreation,
+  isCombat,
   MovementSchema,
   MAX_RAID_PLAYERS,
   type Ack,
@@ -21,14 +25,18 @@ import {
   reviveHero,
   startRaid,
   tickRaid,
+  travelHero,
+  scaleForLateJoin,
 } from './raidEngine';
 import { directBattle, type Encounter } from './battleDirector';
+import { generateCreation, localBlueprint, ForgeError, GENERATION_MODEL } from './creativeDirector';
 
 type Room = {
   state: RaidState;
   tokens: Record<string, string>;
   sockets: Record<string, string>;
   sequences: Record<string, number>;
+  loadingDeadlines: Record<string, number>;
   touched: number;
 };
 type Reply = (data: Ack<unknown>) => void;
@@ -45,7 +53,7 @@ const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export function makeServer() {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '4kb' }));
+  app.use(express.json({ limit: '48kb' }));
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
@@ -91,11 +99,91 @@ export function makeServer() {
     res.json({
       ok: true,
       mode: 'cooperative',
+      worldExpansion: true,
+      creativeForge: true,
       maxPlayers: 4,
       aiConfigured: Boolean(process.env.OPENAI_API_KEY),
     }),
   );
-  app.get('/api/config', (_req, res) => res.json({ publicUrl: process.env.PUBLIC_URL || null }));
+  app.get('/api/config', (_req, res) =>
+    res.json({
+      publicUrl: process.env.PUBLIC_URL || null,
+      aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+      model: process.env.OPENAI_MODEL || GENERATION_MODEL,
+    }),
+  );
+  let generations = 0;
+  app.post('/api/forge', async (req, res) => {
+    if (limited(`forge:${req.ip}`, 5) || encounters.size >= 500) {
+      res.status(429).json({ error: 'The creator is busy. Wait a minute and retry.' });
+      return;
+    }
+    const p = z
+      .object({ mode: z.enum(['ai', 'local']), brief: ForgeBriefSchema })
+      .strict()
+      .safeParse(req.body);
+    if (!p.success) {
+      res.status(400).json({ error: 'Please complete a valid creative brief.' });
+      return;
+    }
+    if (p.data.mode === 'ai' && generations >= 2) {
+      res.status(429).json({ error: 'Two worlds are already being generated. Try again shortly.' });
+      return;
+    }
+    if (p.data.mode === 'ai') generations++;
+    const controller = new AbortController();
+    res.once('close', () => {
+      if (!res.writableEnded) controller.abort();
+    });
+    try {
+      const spec =
+        p.data.mode === 'ai'
+          ? await generateCreation(p.data.brief, controller.signal)
+          : localBlueprint(p.data.brief);
+      res.json({
+        spec,
+        source: p.data.mode === 'ai' ? 'ai' : 'custom',
+        sourceNote:
+          p.data.mode === 'ai'
+            ? `Created with ${process.env.OPENAI_MODEL || GENERATION_MODEL}. Review your editable 3D blueprint.`
+            : 'Local editable blueprint. No AI called.',
+      });
+    } catch (error) {
+      if (res.destroyed) return;
+      res.status(error instanceof ForgeError ? error.status : 500).json({
+        error: error instanceof ForgeError ? error.message : 'The blueprint could not be created.',
+      });
+    } finally {
+      if (p.data.mode === 'ai') generations--;
+    }
+  });
+  app.post('/api/forge/save', (req, res) => {
+    if (limited(`save:${req.ip}`, 12) || encounters.size >= 500) {
+      res.status(429).json({ error: 'Too many blueprints. Wait a minute.' });
+      return;
+    }
+    const p = CreativeEncounterSchema.safeParse(req.body);
+    const error = p.success
+      ? validateCreation(p.data.creation)
+      : 'The blueprint has invalid or missing fields.';
+    if (!p.success || error) {
+      res.status(400).json({ error });
+      return;
+    }
+    const spec = p.data;
+    spec.heroName = spec.creation.heroes[0].name;
+    spec.bossName = spec.creation.boss.name;
+    spec.bossAttacks = spec.creation.boss.attacks.map((a) => a.mechanic) as typeof spec.bossAttacks;
+    const encounter: Encounter = {
+      spec,
+      source: 'custom',
+      sourceNote:
+        'Reviewed custom blueprint. Appearance, powers, environment and controls are defined by this design.',
+    };
+    const id = token();
+    encounters.set(id, { ...encounter, expires: Date.now() + 600000 });
+    res.json({ id, ...encounter });
+  });
   app.post('/api/encounters', async (req, res) => {
     if (limited(`ai:${req.ip}`, 8) || encounters.size >= 500) {
       res.status(429).json({ error: 'The director is busy. Wait a minute and retry.' });
@@ -150,7 +238,7 @@ export function makeServer() {
       }
     }
   }
-  function bind(socket: Socket, r: Room, id: string, reply: Reply) {
+  function bind(socket: Socket, r: Room, id: string, reply: Reply, lateJoin = false) {
     const oldId = r.sockets[id];
     if (oldId && oldId !== socket.id) {
       const old = io.sockets.sockets.get(oldId);
@@ -163,9 +251,14 @@ export function makeServer() {
     r.sockets[id] = socket.id;
     r.sequences[id] = -1;
     r.state.raid.heroes[id].connected = true;
+    if (lateJoin) r.loadingDeadlines[id] = Date.now() + 60000;
     const s = r.state;
     const battlePhase = s.phase === 'DISCONNECTED' ? s.resumePhase : s.phase;
-    if (battlePhase && !['LOBBY', 'CALIBRATING', 'VICTORY', 'DEFEAT'].includes(battlePhase)) {
+    if (
+      !lateJoin &&
+      battlePhase &&
+      !['LOBBY', 'CALIBRATING', 'VICTORY', 'DEFEAT'].includes(battlePhase)
+    ) {
       if (s.phase !== 'DISCONNECTED') {
         s.resumePhase = s.phase;
         s.phase = 'DISCONNECTED';
@@ -202,13 +295,18 @@ export function makeServer() {
     delete r.tokens[id];
     delete r.sequences[id];
     delete r.sockets[id];
+    delete r.loadingDeadlines[id];
     if (
       ['LOBBY', 'CALIBRATING'].includes(r.state.phase) ||
       r.state.resumePhase === 'LOBBY' ||
       r.state.resumePhase === 'CALIBRATING'
-    )
+    ) {
+      const region = r.state.raid.heroes[id]?.regionId;
       delete r.state.raid.heroes[id];
-    else {
+      if (region) delete r.state.raid.regions[region];
+      if (region === r.state.raid.bossRegionId)
+        r.state.raid.bossRegionId = Object.keys(r.state.raid.regions)[0] ?? '';
+    } else {
       const h = r.state.raid.heroes[id];
       h.connected = false;
       h.ready = false;
@@ -303,6 +401,7 @@ export function makeServer() {
           tokens: { [id]: token() },
           sockets: {},
           sequences: {},
+          loadingDeadlines: {},
           touched: Date.now(),
         };
         rooms.set(code, r);
@@ -328,8 +427,12 @@ export function makeServer() {
             .strict()
             .safeParse(raw),
           r = p.success && rooms.get(p.data.code);
-        if (!r || !p.success || !['LOBBY', 'CALIBRATING'].includes(r.state.phase)) {
-          fail(reply, 'Room not found or the raid has already begun.');
+        if (
+          !r ||
+          !p.success ||
+          !['LOBBY', 'CALIBRATING', 'ARENA', 'REALITY'].includes(r.state.phase)
+        ) {
+          fail(reply, 'Room not found or not accepting reinforcements right now.');
           return;
         }
         if (r.state.practice || Object.keys(r.state.raid.heroes).length >= MAX_RAID_PLAYERS) {
@@ -339,7 +442,12 @@ export function makeServer() {
         const id = randomBytes(8).toString('hex');
         r.tokens[id] = token();
         addHero(r.state, id, p.data.name ?? `Hero ${Object.keys(r.state.raid.heroes).length + 1}`);
-        bind(socket, r, id, reply);
+        const late = isCombat(r.state.phase);
+        if (late) {
+          r.state.raid.heroes[id].ready = true;
+          scaleForLateJoin(r.state);
+        }
+        bind(socket, r, id, reply, late);
       },
       4,
     );
@@ -395,6 +503,46 @@ export function makeServer() {
       broadcast(m.room);
       reply({ ok: true, data: null });
     });
+    on('hero:design', (raw, reply) => {
+      const m = member(),
+        p = z
+          .object({ index: z.number().int().min(0).max(3) })
+          .strict()
+          .safeParse(raw);
+      if (!m || !p.success || !['LOBBY', 'CALIBRATING'].includes(m.room.state.phase)) {
+        fail(reply, 'Choose your hero in the lobby.');
+        return;
+      }
+      const design = m.room.state.spec.creation?.heroes[p.data.index];
+      if (!design) {
+        fail(reply, 'That hero is not available.');
+        return;
+      }
+      m.room.state.raid.heroes[m.id].design = structuredClone(design);
+      broadcast(m.room);
+      reply({ ok: true, data: null });
+    });
+    on(
+      'world:travel',
+      (raw, reply) => {
+        const m = member(),
+          p = z
+            .object({ regionId: z.string().max(48) })
+            .strict()
+            .safeParse(raw);
+        if (!m || !p.success) {
+          fail(reply, 'Choose a connected realm.');
+          return;
+        }
+        const error = travelHero(m.room.state, m.id, p.data.regionId);
+        if (error) fail(reply, error);
+        else {
+          broadcast(m.room);
+          reply({ ok: true, data: null });
+        }
+      },
+      5,
+    );
     on('battle:start', (raw, reply) => {
       const m = member(),
         p = z
@@ -424,6 +572,7 @@ export function makeServer() {
       }
       const s = m.room.state;
       s.raid.heroes[m.id].renderReady = true;
+      delete m.room.loadingDeadlines[m.id];
       if (
         s.renderPending &&
         Object.values(s.raid.heroes)
@@ -462,6 +611,7 @@ export function makeServer() {
           n.camera = h.camera;
           n.controlMode = h.controlMode;
           n.color = h.color;
+          n.design = h.design;
         }
       }
       m.room.state = next;
@@ -568,6 +718,19 @@ export function makeServer() {
     last = now;
     for (const [code, r] of rooms) {
       const s = r.state;
+      for (const [id, deadline] of Object.entries(r.loadingDeadlines)) {
+        if (now <= deadline) continue;
+        const socket = io.sockets.sockets.get(r.sockets[id]);
+        socket?.leave(code);
+        if (socket) {
+          delete socket.data.session;
+          socket.emit('room:closed', {
+            reason: 'Your 3D realm did not finish loading. Rejoin with a WebGL 2 browser.',
+          });
+        }
+        departed(r, id);
+      }
+      if (!rooms.has(code)) continue;
       if (s.reconnectUntil && now > s.reconnectUntil) {
         for (const h of Object.values(s.raid.heroes).filter((h) => !h.connected && !h.bot))
           departed(r, h.id);

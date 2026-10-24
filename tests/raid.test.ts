@@ -20,8 +20,11 @@ function raid(count = 2) {
   expect(startRaid(s)).toBeNull();
   advance(s, 2800);
   s.raid.nextAttackAt = 1e9;
-  for (const h of Object.values(s.raid.heroes))
+  s.raid.nextRoamAt = 1e9;
+  for (const h of Object.values(s.raid.heroes)) {
+    h.regionId = s.raid.bossRegionId;
     h.fighter.position = { x: h.id === 'one' ? -2 : 2, z: 0 };
+  }
   return s;
 }
 function hit(s: RaidState, id: string, action: 'punch' | 'special' = 'punch') {

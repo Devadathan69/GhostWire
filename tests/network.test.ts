@@ -42,6 +42,96 @@ function wait(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 describe('cooperative Socket.IO sessions', () => {
+  it('expands an active world without pausing existing heroes and waits for new graphics', async () => {
+    const host = await client(),
+      peer = await client(),
+      reinforcement = await client();
+    const r = await room(host);
+    await req(peer, 'room:join', { code: r.session.code });
+    await ready(host);
+    await ready(peer);
+    await req(host, 'battle:start');
+    const s = server.rooms.get(r.session.code)!.state;
+    s.phase = 'ARENA';
+    s.raid.nextAttackAt = 1e9;
+    s.bossHp = s.raid.maxBossHp * 0.75;
+    const joined = await req<RoomReply>(reinforcement, 'room:join', {
+      code: r.session.code,
+      name: 'Reinforcement',
+    });
+    expect(joined.ok).toBe(true);
+    if (!joined.ok) throw Error(joined.error);
+    expect(s.phase).toBe('ARENA');
+    expect(Object.keys(s.raid.regions)).toHaveLength(3);
+    expect(s.bossHp / s.raid.maxBossHp).toBeCloseTo(0.75, 2);
+    expect((await req(reinforcement, 'gesture:intent', { action: 'punch', sequence: 1 })).ok).toBe(
+      false,
+    );
+    await req(reinforcement, 'battle:render-ready');
+    expect(
+      (await req(reinforcement, 'gesture:intent', { action: 'special', sequence: 2 })).ok,
+    ).toBe(true);
+    expect((await req(host, 'world:travel', { regionId: 'forged' })).ok).toBe(false);
+    expect(
+      (
+        await req(host, 'world:travel', {
+          regionId: s.raid.heroes[joined.data.session.playerId!].regionId,
+        })
+      ).ok,
+    ).toBe(true);
+    for (const socket of [reinforcement, peer, host]) await req(socket, 'room:leave');
+  });
+  it('validates and saves custom designs and exposes only safe AI configuration', async () => {
+    const config = await fetch(`${base}/api/config`).then((r) => r.json());
+    expect(config).not.toHaveProperty('apiKey');
+    expect(config).toHaveProperty('aiConfigured');
+    const forged = await fetch(`${base}/api/forge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'local',
+        brief: {
+          story: 'A frozen city raid',
+          heroes: 'Astra, Luma',
+          boss: 'Titan',
+          environment: 'Ice city',
+          powers: 'Magic shields',
+          controls: 'Default',
+        },
+      }),
+    }).then((r) => r.json());
+    expect(forged.source).toBe('custom');
+    const bad = structuredClone(forged.spec);
+    bad.creation.heroes[0].abilities[0].key = bad.creation.heroes[0].abilities[1].key;
+    expect(
+      (
+        await fetch(`${base}/api/forge/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bad),
+        })
+      ).status,
+    ).toBe(400);
+    const saved = await fetch(`${base}/api/forge/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(forged.spec),
+    }).then((r) => r.json());
+    const host = await client();
+    const created = await req<RoomReply>(host, 'room:create', {
+      encounterId: saved.id,
+      practice: false,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw Error(created.error);
+    expect(created.data.state.spec.creation?.boss.name).toBe('Titan');
+    expect((await req(host, 'hero:design', { index: 1 })).ok).toBe(true);
+    expect(
+      server.rooms.get(created.data.session.code)!.state.raid.heroes[created.data.session.playerId!]
+        .design?.name,
+    ).toBe('Luma');
+    await req(host, 'room:leave');
+  });
   it('creates four independent hero slots, rejects a fifth, and enforces leader/readiness gates', async () => {
     const host = await client(),
       peers = await Promise.all([client(), client(), client(), client()]);
@@ -89,10 +179,10 @@ describe('cooperative Socket.IO sessions', () => {
     expect((await req(host, 'gesture:intent', { action: 'power', sequence: 1 })).ok).toBe(false);
     expect((await req(host, 'gesture:intent', { action: 'punch', sequence: 2 })).ok).toBe(true);
     expect((await req(host, 'gesture:intent', { action: 'punch', sequence: 2 })).ok).toBe(false);
-    await wait(230);
+    await wait(650);
     expect(s.bossHp).toBe(360);
     expect((await req(peer, 'gesture:intent', { action: 'punch', sequence: 1 })).ok).toBe(true);
-    await wait(230);
+    await wait(650);
     expect(s.bossHp).toBeLessThan(360);
     const before = { ...s.raid.heroes[id].fighter.position };
     await req(peer, 'fighter:move', { x: 1, z: 0, sprint: true });

@@ -4,11 +4,17 @@ import { batchRigidMeshes, link, luminous, material, mesh } from './geometry';
 import { surface } from './surfaces';
 
 export function createArena(spec: BattleSpec) {
+  const env = spec.creation?.environment;
   const root = new THREE.Group(),
     portal = new THREE.Group(),
     debris = new THREE.Group();
-  const stone = surface('#55534c', 0.08, 0.94, 81),
-    trim = surface('#716b58', 0.62, 0.5, 71);
+  const stone = surface(
+      env?.groundColor ?? '#55534c',
+      env?.groundMaterial === 'metal' ? 0.8 : 0.08,
+      env?.groundMaterial === 'ice' ? 0.18 : 0.94,
+      81,
+    ),
+    trim = surface(env?.propColor ?? '#716b58', 0.62, 0.5, 71);
   const glow = luminous(spec.secondaryColor, 1.6),
     pale = luminous(spec.primaryColor, 1.4);
   const floor = mesh(root, new THREE.CylinderGeometry(7.7, 7.2, 0.65, 64), stone, [0, -0.4, 0]);
@@ -38,7 +44,9 @@ export function createArena(spec: BattleSpec) {
     tiles.setMatrixAt(i, dummy.matrix);
     tiles.setColorAt(
       i,
-      new THREE.Color().setHSL(0.59, 0.12, 0.33 + (Math.sin(i * 19.1) + 1) * 0.055),
+      env
+        ? new THREE.Color(env.groundColor).multiplyScalar(0.85 + (Math.sin(i * 19.1) + 1) * 0.15)
+        : new THREE.Color().setHSL(0.59, 0.12, 0.33 + (Math.sin(i * 19.1) + 1) * 0.055),
     );
   });
   tiles.receiveShadow = true;
@@ -46,7 +54,7 @@ export function createArena(spec: BattleSpec) {
   const abyss = mesh(
     root,
     new THREE.PlaneGeometry(240, 240),
-    material(spec.arena === 'volcano' ? '#291820' : '#101b2b', 0.25, 0.8),
+    material(env?.skyColor ?? (spec.arena === 'volcano' ? '#291820' : '#101b2b'), 0.25, 0.8),
     [0, -2, 0],
   );
   abyss.rotation.x = -Math.PI / 2;
@@ -112,7 +120,11 @@ export function createArena(spec: BattleSpec) {
     const height = 2.3 + ((i * 7) % 6);
     const rock = mesh(
       root,
-      rockGeo,
+      env?.biome === 'city'
+        ? new THREE.BoxGeometry(1, 1, 1)
+        : env?.biome === 'ice'
+          ? new THREE.OctahedronGeometry(1)
+          : rockGeo,
       stone,
       [x, height * 0.28 - 1.5, z],
       [1.3 + (i % 3), height, 1.4],
@@ -228,6 +240,46 @@ export function createArena(spec: BattleSpec) {
     }),
   );
   root.add(stars);
+  if (env) {
+    (stars.material as THREE.PointsMaterial).color.set(
+      env.weather === 'snow'
+        ? '#e0f8ff'
+        : env.weather === 'embers'
+          ? '#ff9c40'
+          : env.weather === 'rain'
+            ? '#7ca6c2'
+            : env.skyColor,
+    );
+    (stars.material as THREE.PointsMaterial).size =
+      env.weather === 'snow' ? 0.09 : env.weather === 'mist' ? 0.18 : 0.045;
+    for (const prop of env.props) {
+      const group = new THREE.Group();
+      group.position.set(prop.x, 0, prop.z);
+      group.scale.setScalar(prop.scale);
+      root.add(group);
+      if (prop.kind === 'tower') {
+        mesh(group, new THREE.BoxGeometry(1.4, 4, 1.2), trim, [0, 1.4, 0]);
+        for (let y = 0.5; y < 3.2; y += 0.6)
+          for (const x of [-0.4, 0.4])
+            mesh(group, new THREE.BoxGeometry(0.15, 0.22, 0.04), pale, [x, y, 0.62]);
+      } else if (prop.kind === 'tree') {
+        mesh(group, new THREE.CylinderGeometry(0.12, 0.25, 2.5, 8), trim, [0, 0.8, 0]);
+        mesh(group, new THREE.ConeGeometry(1.2, 3, 9), stone, [0, 2.6, 0]);
+      } else if (prop.kind === 'crystal')
+        mesh(group, new THREE.OctahedronGeometry(1), pale, [0, 0.8, 0], [0.6, 1.8, 0.6]);
+      else if (prop.kind === 'ruin') {
+        for (let i = 0; i < 3; i++)
+          mesh(group, new THREE.BoxGeometry(0.7, 0.6 + i * 0.5, 0.7), trim, [
+            (i - 1) * 0.7,
+            i * 0.2,
+            0,
+          ]).rotation.z = (i - 1) * 0.2;
+      } else {
+        mesh(group, new THREE.CylinderGeometry(0.12, 0.2, 1.7, 8), trim, [0, 0.6, 0]);
+        mesh(group, new THREE.SphereGeometry(0.25, 10, 8), pale, [0, 1.6, 0]);
+      }
+    }
+  }
   batchRigidMeshes(
     root,
     root.children.filter((object) => object instanceof THREE.Mesh && object.material === fire),
