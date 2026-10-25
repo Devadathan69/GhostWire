@@ -1,6 +1,6 @@
 # Ghostwire demo
 
-[Watch the demo with audio](https://github.com/user-attachments/assets/9411962e-3ae1-4541-af2a-1f5fefc9dc16) · [Open/download the repository copy](ghostwire-demo.mp4)
+[Watch the demo with audio in the README](https://github.com/Devadathan69/GhostWire#demo-video) · [Open/download the repository copy](ghostwire-demo.mp4)
 
 The owner-provided recording shows creating an Avengers-inspired world, reviewing its editable heroes and powers, joining a two-hero lobby, and playing with camera-based motion controls. It is presentation footage, separate from the automated victory and Reality Breach evidence in [the verification record](../docs/LIVE_AI_VERIFICATION.md).
 

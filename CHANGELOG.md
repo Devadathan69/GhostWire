@@ -1,5 +1,11 @@
 # Change log
 
+## 2026-10-25T07:00:46+05:30 — Verify public README playback
+
+- Publication: demo commit f746e569fb95e2c9f1b4ecf2cb9707145d163708 was pushed to Devadathan69/GhostWire main. GitHub rendered the README attachment as a native video player. In a signed-out browser, the player loaded its full 144.60-second duration with no media error, played beyond five seconds, and paused successfully. Saved a local screenshot of the published result.
+- Link correction: point the watch links in Demo/README.md and SUBMISSION.md at the public README's video section, where GitHub supplies the playable media URL, instead of navigating directly to the attachment's canonical identifier. The repository's 9 MB MP4 remains a separate download.
+- Validation: all documentation links and credential-pattern checks passed across 149 tracked/candidate files before the first push; staged whitespace review passed. The full optimized clip decoded without errors, its audio hash matched the original, and its 1080p/30fps properties were confirmed. The 117 MB original remains unchanged and ignored. No game code changed or new gameplay test result is claimed.
+
 ## 2026-10-25T06:58:09+05:30 — Add the owner's narrated demo to the README
 
 - Changed: added the owner-selected 2:24.60 demo as a prominent README video section, linked it from SUBMISSION.md, and supplied Demo/ghostwire-demo.mp4 plus media details. Uploaded the optimized copy through GitHub's repository-scoped attachment endpoint for inline playback; the repository copy provides a separate download. Final public rendering/access checks follow the push.
