@@ -6,7 +6,22 @@ A browser 3D raid for **2–4 heroes against one AI boss**. Everyone controls a 
 
 **The world expands with your squad:** each device adds a connected realm. Travel between realms, follow boss invasions, or support allies with rift attacks. **Create a world** turns a movie/story/character brief into an editable 3D encounter, using `gpt-6.1-sol` or an explicitly labeled local blueprint. See [upgrade phases and supported generation](docs/EXPANDING_WORLDS.md).
 
+## Demo video
+
+Watch the **2:25 demo with audio**: prompt-based Avengers world creation, editable heroes and powers, invite-based multiplayer, and body-motion combat.
+
+https://github.com/user-attachments/assets/9411962e-3ae1-4541-af2a-1f5fefc9dc16
+
+[Open or download the MP4](Demo/ghostwire-demo.mp4) · [Demo details](Demo/README.md) · [Play on your phones](docs/PHONE_TEST.md)
+
+Invite codes shown in the recording belong to that recorded session. Create a fresh lobby to play.
+
+<details>
+<summary>Gameplay screenshot</summary>
+
 ![Cooperative 3D raid](docs/screenshots/coop-arena.png)
+
+</details>
 
 [Cooperative design and phases](docs/COOPERATIVE_RAID.md) · [Exact controls](docs/CONTROLS.md) · [Phone walkthrough](docs/PHONE_TEST.md) · [Submission](SUBMISSION.md) · [Change log](CHANGELOG.md) · [AI assistance](AI_USAGE.md)
 

@@ -1,0 +1,2 @@
+# Preserve the owner's full-size source locally; GitHub rejects files over 100 MiB.
+/GhostWire Demo.mp4

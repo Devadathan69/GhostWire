@@ -1,5 +1,12 @@
 # Change log
 
+## 2026-10-25T06:58:09+05:30 — Add the owner's narrated demo to the README
+
+- Changed: added the owner-selected 2:24.60 demo as a prominent README video section, linked it from SUBMISSION.md, and supplied Demo/ghostwire-demo.mp4 plus media details. Uploaded the optimized copy through GitHub's repository-scoped attachment endpoint for inline playback; the repository copy provides a separate download. Final public rendering/access checks follow the push.
+- Media handling: the 117,459,641-byte original exceeds GitHub's ordinary 100 MiB limit. Preserved it unchanged and ignored that exact source filename; the complete 1080p/30fps H.264 copy is 9,026,862 bytes with fast-start metadata and the original AAC stream copied unchanged. No game behavior or source implementation revision changed.
+- Validation: full media decoding passed without errors, duration/resolution/audio properties were inspected, original/copy audio hashes matched, and sampled frames were reviewed. Documentation links, staged file sizes and credential patterns are checked before publication. Game tests are not rerun for this media/documentation-only change.
+- Scope: the owner explicitly requested publishing this recording, including its recorded session UI and camera footage. Recorded invite codes are historical; interactive play requires a new lobby. The edited recording is not presented as new evidence of a victorious raid or a reached Reality Breach.
+
 ## 2026-10-25T06:03:21+05:30 — Complete public live-AI multiplayer verification
 
 - Final result: implementation 7a827086b7e6c3f7fccc5aa110f06ef235bb6719 passed the full generated three-client HTTPS raid in 2.2 minutes, with zero browser errors. Thor, Doctor Strange and Iron Man dealt 151, 265 and 100 real damage respectively. Generated keys/touch, connected-region travel, live reinforcement/scaling, all three ultimate effects, both named boss warnings, local-camera Reality Breach, shared victory and rematch readiness passed without forcing state or outcomes.
