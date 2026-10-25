@@ -1,5 +1,12 @@
 # Change log
 
+## 2026-10-25T06:03:21+05:30 — Complete public live-AI multiplayer verification
+
+- Final result: implementation 7a827086b7e6c3f7fccc5aa110f06ef235bb6719 passed the full generated three-client HTTPS raid in 2.2 minutes, with zero browser errors. Thor, Doctor Strange and Iron Man dealt 151, 265 and 100 real damage respectively. Generated keys/touch, connected-region travel, live reinforcement/scaling, all three ultimate effects, both named boss warnings, local-camera Reality Breach, shared victory and rematch readiness passed without forcing state or outcomes.
+- Final regressions: two complete human-role raids with camera breach/reconnect/rematch (1.7 minutes), lost graphics confirmation (9.7 seconds), and lost resume message with the same hero/slot/readiness restored (9.6 seconds) passed together in 2.0 minutes on this revision. All 134 unit/network/creator/motion tests and build/TypeScript passed. Earlier failed report paths, idle/cancelled-travel driving and premature UI waits are documented below; the final checks are green.
+- Evidence/publication: copied screenshots from the completed isolated public run into docs/screenshots, updated the live verification/test/submission records and recorded the exact implementation SHA. The implementation checkpoint was pushed to the authorized Devadathan69/GhostWire main branch; this follow-up changes documentation/evidence only. Credential-pattern review across 146 tracked/candidate files, local Markdown links and whitespace checks passed.
+- Phone handoff: prepared the same saved generation as a fresh human squad with Thor ready on the laptop and an invite for the phone. Live room/QR evidence stays ignored locally. Only the original request used API credits; all replays used its unmodified output. The owner's one-phone rendering/gesture report is confirmed as a report, with broader physical-device coverage and human code review still unverified.
+
 ## 2026-10-25T05:53:36+05:30 — Preserve heroes through a lost reconnect message
 
 - Changed: apps/client/src/networking/session.ts now distinguishes retryable network errors from explicit server rejections. Transient resume failures preserve the private hero identity and automatically retry with controls paused. A version guard cancels stale recovery after leaving, room closure or another accepted session; the server still owns validity and expiry.

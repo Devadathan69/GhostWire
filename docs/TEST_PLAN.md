@@ -40,6 +40,8 @@ All 11 Chromium scenarios passed against the production build in one combined ru
 
 Additional regressions cover a deliberately lost graphics confirmation, the saved real-AI three-client encounter, and a deliberately lost resume message on polling/WebSocket. The resume check passed in 10.3 seconds: after the real request timeout, the same hero, invite, ready state and one occupied slot returned automatically. No session token is printed. Browser commands run serially with separate report folders; generated screenshots are captured in each run's report folder before verified evidence is copied into docs.
 
+On final implementation `7a827086b7e6c3f7fccc5aa110f06ef235bb6719`, the two-human/two-complete-match scenario, lost graphics confirmation and lost resume message passed together in **2.0 minutes** (1.7 minutes, 9.7 seconds and 9.6 seconds respectively). The final generated public replay passed separately in 2.2 minutes. This is distinct from the earlier 11-scenario combined run; a new combined run of all 14 scenarios is not claimed.
+
 Screenshots prefixed `coop-` are current cooperative QA evidence. Camera images are synthetic Chromium sources, not a person or demonstration recording. Earlier screenshots and QA_AUDIT.md describe the former versus game. Traces and temporary browser recordings stay ignored in test-results/.
 
 ## Public phone link
@@ -48,7 +50,7 @@ The HTTPS script passed model/WASM assets, invitations, private hero identities,
 
 The world/creator browser scenarios exercise watching with paused controls, traveling into a shared 3D view, boss arrival, a third live device/renderer, full blueprint preview/edit/save/hero selection, duplicate-key errors, no-key AI errors and a remapped key reaching authoritative combat. They drive real UI inputs and never mutate server game state.
 
-The actual generated encounter also passed a complete **three-client HTTPS raid in 2.1 minutes**, including generated keys/touch, hero selection, travel, live reinforcement, all ultimate effects, named boss warnings, camera-backed Reality Breach, shared victory and rematch, with zero browser errors. Compact updates reuse the full blueprint delivered on create/join/resume; the sampled two-hero public snapshot decreased from 13,454 to 2,901 bytes without relying on edge compression. The exact evidence and limits are in [LIVE_AI_VERIFICATION.md](LIVE_AI_VERIFICATION.md).
+The actual generated encounter also passed a complete **three-client HTTPS raid in 2.2 minutes on the final implementation**, including generated keys/touch, hero selection, travel, live reinforcement, all ultimate effects, named boss warnings, camera-backed Reality Breach, shared victory and rematch, with zero browser errors. Compact updates reuse the full blueprint delivered on create/join/resume; the sampled two-hero public snapshot decreased from 13,454 to 2,901 bytes without relying on edge compression. The exact evidence and limits are in [LIVE_AI_VERIFICATION.md](LIVE_AI_VERIFICATION.md).
 
 ## Live generation and physical confirmation
 
