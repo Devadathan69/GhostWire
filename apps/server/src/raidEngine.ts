@@ -65,7 +65,12 @@ export function addHero(s: RaidState, id: string, name: string, bot = false) {
     regionId,
     travel: null,
     travelReadyAt: 0,
-    ...(designs ? { design: structuredClone(designs[slot % designs.length]) } : {}),
+    ...(designs
+      ? {
+          design: structuredClone(designs[slot % designs.length]),
+          designIndex: slot % designs.length,
+        }
+      : {}),
   };
 }
 export function createRaid(

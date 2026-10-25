@@ -47,7 +47,11 @@ export async function start(page: Page) {
   await expect(page.getByRole('button', { name: 'Strike', exact: true })).toBeEnabled();
 }
 
-type PilotWindow = typeof window & { raidPilotStop?: () => void; raidPilotAttack?: boolean };
+type PilotWindow = typeof window & {
+  raidPilotStop?: () => void;
+  raidPilotAttack?: boolean;
+  raidPilotDestination?: 'boss';
+};
 async function pilot(page: Page, index: number) {
   // Drive the same DOM keyboard handlers inside each test page. This avoids
   // cross-process key round trips starving two simultaneous software renderers.
@@ -98,6 +102,16 @@ async function pilot(page: Page, index: number) {
       );
       const stage = document.querySelector<HTMLElement>('[data-testid="game-stage"]');
       const canvas = document.querySelector<HTMLCanvasElement>('canvas[data-renderer="three"]');
+      const defend = () => {
+        if (Number(stage?.dataset.impactIn ?? 99999) >= 500) return false;
+        if (ready('Evade')) power('dodge');
+        else if (ready('Jump')) power('jump');
+        else if (ready('Guard')) {
+          power('guard');
+          return true;
+        }
+        return false;
+      };
       if (
         !own ||
         Number(own.dataset.hp) <= 0 ||
@@ -107,12 +121,25 @@ async function pilot(page: Page, index: number) {
         release();
         return;
       }
-      if (down && down.dataset.region !== own.dataset.region) {
+      const destination = down
+        ? down.dataset.region !== own.dataset.region
+          ? down.dataset.region
+          : undefined
+        : win.raidPilotDestination === 'boss'
+          ? canvas?.dataset.bossRegion
+          : undefined;
+      if (destination && destination !== own.dataset.region) {
         release();
+        // Travel takes standing still. Defend through an incoming volley and
+        // use the safe interval afterward; damage correctly cancels crossing.
+        if (Number(stage?.dataset.impactIn ?? 99999) < 2000) {
+          defend();
+          return;
+        }
         const map = document.querySelector<HTMLDetailsElement>('.world-map-details');
         if (map && !map.open) map.querySelector<HTMLElement>('summary')?.click();
         const card = [...document.querySelectorAll<HTMLElement>('.realm-card')].find(
-          (c) => c.dataset.regionId === down.dataset.region,
+          (c) => c.dataset.regionId === destination,
         );
         const travel = [...(card?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find(
           (b) => b.textContent?.trim() === 'Travel here',
@@ -177,14 +204,7 @@ async function pilot(page: Page, index: number) {
         if (!walk) press('f');
         return;
       }
-      if (Number(stage?.dataset.impactIn ?? 99999) < 500) {
-        if (ready('Evade')) power('dodge');
-        else if (ready('Jump')) power('jump');
-        else if (ready('Guard')) {
-          power('guard');
-          return;
-        }
-      }
+      if (defend()) return;
       if (win.raidPilotAttack) {
         if (ready('Overdrive')) power('special');
         else if (ready('Strike')) power('punch');
@@ -192,6 +212,7 @@ async function pilot(page: Page, index: number) {
     }, 100);
     win.raidPilotStop = () => {
       clearInterval(timer);
+      win.raidPilotDestination = undefined;
       release();
     };
   }, index);

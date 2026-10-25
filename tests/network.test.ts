@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import { io, type Socket } from 'socket.io-client';
-import type { Ack, RoomReply } from '@ghostwire/shared';
+import { restoreSnapshot, type Ack, type RoomReply, type BattleSnapshot } from '@ghostwire/shared';
 import { makeServer } from '../apps/server/src/server';
 
 const server = makeServer();
@@ -130,7 +130,21 @@ describe('cooperative Socket.IO sessions', () => {
     expect(created.ok).toBe(true);
     if (!created.ok) throw Error(created.error);
     expect(created.data.state.spec.creation?.boss.name).toBe('Titan');
+    const update = new Promise<BattleSnapshot>((resolve) => {
+      const changed = (packet: BattleSnapshot) => {
+        if (packet.raid?.heroes[created.data.session.playerId!]?.designIndex !== 1) return;
+        host.off('battle:snapshot', changed);
+        resolve(packet);
+      };
+      host.on('battle:snapshot', changed);
+    });
     expect((await req(host, 'hero:design', { index: 1 })).ok).toBe(true);
+    const packet = await update;
+    expect(packet).not.toHaveProperty('spec');
+    expect(
+      restoreSnapshot(packet, created.data.state.spec).raid!.heroes[created.data.session.playerId!]
+        .design?.name,
+    ).toBe('Luma');
     expect(
       server.rooms.get(created.data.session.code)!.state.raid.heroes[created.data.session.playerId!]
         .design?.name,

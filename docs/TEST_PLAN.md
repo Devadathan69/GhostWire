@@ -4,7 +4,7 @@ The current game is a 2–4 hero raid against one AI boss. [COOPERATIVE_RAID.md]
 
 ## Automated unit and network checks
 
-Current upgrade pass: **90 tests in ten files**, TypeScript and the production build. The earlier cooperative baseline had 69 tests.
+Current upgrade pass: **134 tests in twelve files**, TypeScript and the production build. The earlier connected-world baseline had 90 tests; the cooperative baseline had 69.
 
 - Shared input/schema validation, calibrated pose/hand gesture fixtures, coordinate mapping, and 3D projection.
 - Two-hero minimum, all-player readiness, four-player scaling and proportionally scaled late reinforcements.
@@ -20,6 +20,7 @@ Current upgrade pass: **90 tests in ten files**, TypeScript and the production b
 - Clearly labeled AI ally that cannot damage Aegis by itself.
 - Real Socket.IO ownership/capacity, token privacy, takeover denial, anti-replay sequences, leader transfer, lobby refresh, all-renderer readiness on initial start and reconnect, full-squad pause/resume, expiry, and fresh rematch readiness/health.
 - Optional encounter-director success/failure/refusal/schema paths use a mocked API, not a live request.
+- A recorded real gpt-6.1-sol encounter exercises all 18 generated power definitions and gesture bindings. Compact snapshots round-trip every live field and selected design for 2–4 heroes, including duplicate display names and ordinary presets; the network regression verifies a changed selection reaches another snapshot.
 
 ## Browser checks
 
@@ -37,6 +38,8 @@ All 11 Chromium scenarios passed against the production build in one combined ru
 10. Two devices initially show one hero in separate realms; watching pauses controls, travel brings two visible heroes together, the boss invades, and a third device expands the live world and loads safely while play continues.
 11. The creator previews custom 3D designs, shows a no-key AI error, rejects duplicate bindings, saves edited powers/keys, supports hero selection and routes a remapped key to authoritative combat.
 
+Additional regressions cover a deliberately lost graphics confirmation, the saved real-AI three-client encounter, and a deliberately lost resume message on polling/WebSocket. The resume check passed in 10.3 seconds: after the real request timeout, the same hero, invite, ready state and one occupied slot returned automatically. No session token is printed. Browser commands run serially with separate report folders; generated screenshots are captured in each run's report folder before verified evidence is copied into docs.
+
 Screenshots prefixed `coop-` are current cooperative QA evidence. Camera images are synthetic Chromium sources, not a person or demonstration recording. Earlier screenshots and QA_AUDIT.md describe the former versus game. Traces and temporary browser recordings stay ignored in test-results/.
 
 ## Public phone link
@@ -45,14 +48,20 @@ The HTTPS script passed model/WASM assets, invitations, private hero identities,
 
 The world/creator browser scenarios exercise watching with paused controls, traveling into a shared 3D view, boss arrival, a third live device/renderer, full blueprint preview/edit/save/hero selection, duplicate-key errors, no-key AI errors and a remapped key reaching authoritative combat. They drive real UI inputs and never mutate server game state.
 
-## Physical rehearsal still required
+The actual generated encounter also passed a complete **three-client HTTPS raid in 2.1 minutes**, including generated keys/touch, hero selection, travel, live reinforcement, all ultimate effects, named boss warnings, camera-backed Reality Breach, shared victory and rematch, with zero browser errors. Compact updates reuse the full blueprint delivered on create/join/resume; the sampled two-hero public snapshot decreased from 13,454 to 2,901 bytes without relying on edge compression. The exact evidence and limits are in [LIVE_AI_VERIFICATION.md](LIVE_AI_VERIFICATION.md).
+
+## Live generation and physical confirmation
+
+One real gpt-6.1-sol request completed in 45.8 seconds. Its exact result is saved as a credential-free regression fixture and replayed without further API charges. The owner reported Doctor Strange rendering and camera gestures working on one physical phone. See [the live verification record](LIVE_AI_VERIFICATION.md) for the generated controls, full-match browser evidence and limits.
+
+## Broader physical rehearsal
 
 - Join from actual 2–4 devices using the same HTTPS origin. Check landscape/portrait layouts and rendering performance.
 - Calibrate body and hand modes in intended lighting; deliberately test all six actions, neutral poses, lost tracking, and motion movement stopping.
 - Coordinate two real heroes to break Aegis, combine Overdrives, spread out during volleys, and revive a fallen ally.
 - Enable local camera, cross the breach, and verify every visible hero/attack mark matches shared positions. Stop/restart camera; verify automatic stop at a team result.
 - Interrupt and restore a device connection; check the 30-second pause, private resume, and departure behavior.
-- If demonstrating AI-generated encounters, verify live output using the owner's server key. Docker and physical Safari/iOS remain unverified.
+- Live output is verified with the owner's server key. Broader physical Safari/iOS coverage and Docker remain unverified.
 - Record only through a deliberate action and with every participant's consent. Never present synthetic evidence as a human demo.
 
 Reality Breach does not reconstruct rooms or provide furniture occlusion. No frame-rate or gesture-latency guarantee is claimed across devices. Rooms are in memory; restarting the server ends them. A temporary tunnel needs the laptop awake and online.

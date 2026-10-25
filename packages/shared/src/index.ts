@@ -248,6 +248,7 @@ export type RaidHero = Player & {
   revives: number;
   threat: number;
   design?: HeroDesign;
+  designIndex?: number;
   regionId: string;
   travel: { from: string; to: string; arrivesAt: number; origin: WorldPosition } | null;
   travelReadyAt: number;
@@ -281,6 +282,49 @@ export type RaidRegion = {
   createdAt: number;
 };
 export type RaidState = BattleState & { raid: RaidData };
+// The immutable blueprint arrives in room:create/join/resume. Frequent updates
+// send only a hero's selection index rather than repeating every power/mesh.
+export type BattleSnapshot = Omit<BattleState, 'spec' | 'raid'> & {
+  raid?: Omit<RaidData, 'heroes'> & { heroes: Record<string, Omit<RaidHero, 'design'>> };
+};
+export function battleSnapshot(state: BattleState): BattleSnapshot {
+  const { spec: _spec, raid, ...rest } = state;
+  if (!raid) return rest;
+  return {
+    ...rest,
+    raid: {
+      ...raid,
+      heroes: Object.fromEntries(
+        Object.entries(raid.heroes).map(([id, { design: _design, ...hero }]) => [id, hero]),
+      ),
+    },
+  };
+}
+export function restoreSnapshot(snapshot: BattleSnapshot, spec: BattleSpec): BattleState {
+  const raid = snapshot.raid;
+  return {
+    ...snapshot,
+    spec,
+    ...(raid
+      ? {
+          raid: {
+            ...raid,
+            heroes: Object.fromEntries(
+              Object.entries(raid.heroes).map(([id, hero]) => [
+                id,
+                {
+                  ...hero,
+                  ...(hero.designIndex !== undefined
+                    ? { design: spec.creation?.heroes[hero.designIndex] }
+                    : {}),
+                },
+              ]),
+            ),
+          },
+        }
+      : {}),
+  };
+}
 /** Project the shared raid onto this hero's existing input and rendering contract. */
 export function heroView(s: BattleState, playerId?: string): BattleState {
   const hero = s.raid?.heroes[playerId ?? ''];

@@ -11,6 +11,7 @@ import {
   CreativeEncounterSchema,
   validateCreation,
   isCombat,
+  battleSnapshot,
   MovementSchema,
   MAX_RAID_PLAYERS,
   type Ack,
@@ -208,7 +209,8 @@ export function makeServer() {
   });
   // Each snapshot replaces the whole state. Skip stale frames under network
   // backpressure; room closures and request acknowledgements remain reliable.
-  const broadcast = (r: Room) => io.to(r.state.code).volatile.emit('battle:snapshot', r.state);
+  const broadcast = (r: Room) =>
+    io.to(r.state.code).volatile.emit('battle:snapshot', battleSnapshot(r.state));
   function closeRoom(code: string, reason: string) {
     const r = rooms.get(code);
     if (!r) return;
@@ -522,6 +524,7 @@ export function makeServer() {
         return;
       }
       m.room.state.raid.heroes[m.id].design = structuredClone(design);
+      m.room.state.raid.heroes[m.id].designIndex = p.data.index;
       broadcast(m.room);
       reply({ ok: true, data: null });
     });
@@ -615,6 +618,7 @@ export function makeServer() {
           n.controlMode = h.controlMode;
           n.color = h.color;
           n.design = h.design;
+          n.designIndex = h.designIndex;
         }
       }
       m.room.state = next;

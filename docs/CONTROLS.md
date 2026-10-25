@@ -30,7 +30,9 @@ Strike and Kick need striking distance in the arena; **MOVE CLOSER** identifies 
 
 Every human device adds a realm. Use **Watch** on a world-map card to view it; your controls pause while watching away from your hero. **Return view to my hero** restores controls. **Travel here** takes 1.2 seconds standing still, grants one second of arrival protection and recharges for 6 seconds. Movement/damage cancels travel; finish attacks first. Kick and revives require the boss/teammate's realm. Across realms, Strike casts a 4-damage rift bolt with a 0.55-second windup; Overdrive retains its damage and 1.1-second windup. Both still need teamwork to break Aegis.
 
-For created heroes, **the actual keys and names are on your power buttons**. Open **Your power and motion guide** for each selected gesture, description, damage and recharge. The creator may map any of the six physical recognizers to a different action. Return to neutral between motions. Body mode supports all six recognizers. One-hand mode supports swipe, fist, pinch and index-up, so use touch/keyboard for powers mapped to duck or knee lift. WASD/arrows, Shift and F remain reserved.
+For created heroes, **the actual keys and names are on your power buttons**. Phone buttons use two columns and wrap long names. Open **Your power and motion guide** for each selected gesture, description, damage and recharge. The creator may map any of the six physical recognizers to a different action. Return to neutral between motions. Body mode supports all six recognizers. One-hand mode supports swipe, fist, pinch and index-up, so use touch/keyboard for powers mapped to duck or knee lift. WASD/arrows, Shift and F remain reserved.
+
+The recorded live-AI encounter uses Thor **J / I / K / L / E / Space**, Doctor Strange **U / O / P / H / N / M**, and Iron Man **1 / 2 / 3 / 4 / 5 / 6**, in Strike / Kick / Guard / Evade / Jump / Overdrive order. See [the generated encounter record](LIVE_AI_VERIFICATION.md) for powers and recharge times. Those bindings belong to this saved encounter; a new prompt can produce different mappings.
 
 ## Rescue a teammate in your realm
 
@@ -42,4 +44,4 @@ Warning rings show locked damage zones. Leave the ring, guard, evade, or time a 
 
 Two distinct heroes landing attacks within 2 seconds break Soul Aegis for a 6-second damage window. Solo hits through Aegis deal zero damage. Paired Overdrives within 1.8 seconds add 40 Unity Burst damage. No friendly fire. At half scaled boss HP, Reality Breach begins. Local camera video appears when enabled; the virtual fallback is clearly labeled. The squad shares **MISSION PASSED** or **MISSION FAILED**, with team stats and recap download. A squad wipe or the 180-second timer ends the raid. The squad leader requests Raid again; all humans ready again.
 
-Gesture tests use synthetic landmarks and camera sources. Real-person recognition still requires physical-device rehearsal in the intended framing and lighting.
+Gesture regressions use synthetic landmarks and camera sources. The owner confirmed the generated Doctor Strange and gestures working on one physical phone. Broader device and lighting coverage still requires rehearsal.

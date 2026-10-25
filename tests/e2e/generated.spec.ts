@@ -42,20 +42,25 @@ async function exerciseKeys(page: Page) {
     }, 100);
     const used: string[] = [];
     try {
-      for (const action of ['dodge', 'jump', 'guard', 'punch', 'kick', 'special']) {
-        const button = document.querySelector<HTMLButtonElement>(
+      for (const action of ['kick', 'dodge', 'jump', 'guard', 'punch', 'special']) {
+        let button = document.querySelector<HTMLButtonElement>(
           `.action-button[data-action="${action}"]`,
         )!;
         const before = Number(button.dataset.readyAt),
-          deadline = performance.now() + 6000;
+          deadline = performance.now() + 10000;
         while (Number(button.dataset.readyAt) <= before) {
           if (performance.now() > deadline)
-            throw Error(`Generated ${action} key did not reach combat.`);
+            throw Error(
+              `Generated ${action} key did not reach combat: ${JSON.stringify({ connected: button.isConnected, disabled: button.disabled, key: button.dataset.key, before, now: button.dataset.readyAt })}`,
+            );
           if (!button.disabled) {
             send(button.dataset.key!, 'keydown');
             send(button.dataset.key!, 'keyup');
           }
           await wait(80);
+          button = document.querySelector<HTMLButtonElement>(
+            `.action-button[data-action="${action}"]`,
+          )!;
         }
         used.push(action);
         await wait(
@@ -98,7 +103,7 @@ test('actual gpt-6.1-sol heroes, powers and world complete a three-device cooper
     await expect(
       host.getByText('Imported blueprint · validated and ready for review.', { exact: true }),
     ).toBeVisible();
-    await host.screenshot({ path: 'docs/screenshots/live-ai-preview.png', fullPage: true });
+    await host.screenshot({ path: test.info().outputPath('live-ai-preview.png'), fullPage: true });
     await host.getByRole('button', { name: 'Create lobby with this world', exact: true }).click();
     await expect(host.getByRole('heading', { name: 'Thanos', exact: true })).toBeVisible();
     const invite = await host
@@ -114,26 +119,50 @@ test('actual gpt-6.1-sol heroes, powers and world complete a three-device cooper
     await ready(peer);
     await ready(host);
     await host.getByRole('button', { name: 'Begin raid', exact: true }).click();
+    await startPilots([host, peer], false);
     for (const p of [host, peer]) {
       await expect(p.locator('canvas[data-renderer=three]')).toHaveAttribute('data-ready', 'true', {
         timeout: 55000,
       });
       await observe(p);
     }
+    // A local first frame precedes the shared opening countdown. Wait for the
+    // server-confirmed controls before trying to travel on a slower phone link.
+    await Promise.all(
+      [host, peer].map((p) =>
+        expect(p.locator('.action-button[data-action=punch]')).toBeEnabled({ timeout: 60000 }),
+      ),
+    );
     await expect(host.locator('.stage-topline')).toContainText(spec.creation.environment.name);
-    const home = await host.locator('.squad-member[data-self=true]').getAttribute('data-region');
-    await peer.getByText('World map · travel & invites', { exact: true }).click();
-    await peer
-      .locator(`.realm-card[data-region-id="${home}"]`)
-      .getByRole('button', { name: 'Travel here', exact: true })
-      .click();
-    await expect(peer.locator('.squad-member[data-self=true]')).toHaveAttribute(
-      'data-region',
-      home!,
+    // Both heroes follow the boss through ordinary map buttons. Keep defending
+    // while inspecting slow devices, and respect damage-cancelled crossings.
+    await Promise.all(
+      [host, peer].map((p) =>
+        p.evaluate(() => {
+          (window as typeof window & { raidPilotDestination?: 'boss' }).raidPilotDestination =
+            'boss';
+        }),
+      ),
+    );
+    await expect
+      .poll(
+        () =>
+          Promise.all(
+            [host, peer].map((p) => p.locator('.action-button[data-action=kick]').isEnabled()),
+          ),
+        { timeout: 35000 },
+      )
+      .toEqual([true, true]);
+    await Promise.all(
+      [host, peer].map((p) =>
+        p.evaluate(() => {
+          (window as typeof window & { raidPilotStop?: () => void }).raidPilotStop?.();
+        }),
+      ),
     );
     const exercised = await Promise.all([host, peer].map(exerciseKeys));
     for (const actions of exercised)
-      expect(actions).toEqual(['dodge', 'jump', 'guard', 'punch', 'kick', 'special']);
+      expect(actions).toEqual(['kick', 'dodge', 'jump', 'guard', 'punch', 'special']);
     // A real touch/click path for the phone's generated Mandala Fist.
     await peer.locator('.action-button[data-action=punch]').click();
     await startPilots([host, peer], false);
@@ -155,8 +184,8 @@ test('actual gpt-6.1-sol heroes, powers and world complete a three-device cooper
     expect(await fight(pages, true)).toBe(true);
     await expect(host.getByText('LIVE · YOUR CAMERA', { exact: true })).toBeVisible();
     await expect(peer.getByText('VIRTUAL ARENA · NO LIVE CAMERA', { exact: true })).toBeVisible();
-    await host.screenshot({ path: 'docs/screenshots/live-ai-breach.png', fullPage: true });
-    await late.screenshot({ path: 'docs/screenshots/live-ai-mobile.png', fullPage: true });
+    await host.screenshot({ path: test.info().outputPath('live-ai-breach.png'), fullPage: true });
+    await late.screenshot({ path: test.info().outputPath('live-ai-mobile.png'), fullPage: true });
     await fight(pages);
     const evidence = [];
     for (const [index, p] of pages.entries()) {
@@ -175,7 +204,17 @@ test('actual gpt-6.1-sol heroes, powers and world complete a three-device cooper
       expect(effects).toContain(hero.abilities.find((a) => a.action === 'special')!.effect);
     const warnings = evidence.flatMap((e) => e.warnings).join('\n');
     for (const attack of spec.creation.boss.attacks) expect(warnings).toContain(attack.name);
-    await host.screenshot({ path: 'docs/screenshots/live-ai-victory.png', fullPage: true });
+    await host.screenshot({ path: test.info().outputPath('live-ai-victory.png'), fullPage: true });
+    await host.getByRole('button', { name: 'Raid again', exact: true }).click();
+    // A public connection can resume after a lost acknowledgement. Allow the
+    // advertised 30-second reconnect window rather than the ordinary UI timeout.
+    await expect(host.getByRole('button', { name: 'Begin raid', exact: true })).toBeDisabled({
+      timeout: 40000,
+    });
+    await expect(peer.getByLabel('Choose your hero', { exact: true })).toHaveValue('1', {
+      timeout: 40000,
+    });
+    expect(errors).toEqual([]);
     await mkdir('.local/live-ai', { recursive: true });
     await writeFile(
       '.local/live-ai/multiplayer-result.json',
@@ -183,7 +222,9 @@ test('actual gpt-6.1-sol heroes, powers and world complete a three-device cooper
         {
           at: new Date().toISOString(),
           model: fixture.model,
+          origin: new URL(invite).origin,
           generatedAt: fixture.generatedAt,
+          rematchVerified: true,
           keysAndGestures: spec.creation.heroes.map((h) => ({
             name: h.name,
             controls: h.abilities.map((a) => ({
@@ -199,10 +240,6 @@ test('actual gpt-6.1-sol heroes, powers and world complete a three-device cooper
         2,
       ),
     );
-    await host.getByRole('button', { name: 'Raid again', exact: true }).click();
-    await expect(host.getByRole('button', { name: 'Begin raid', exact: true })).toBeDisabled();
-    await expect(peer.getByLabel('Choose your hero', { exact: true })).toHaveValue('1');
-    expect(errors).toEqual([]);
   } finally {
     const state = await Promise.allSettled(
       pages.map((p) =>

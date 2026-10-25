@@ -61,6 +61,10 @@ The temporary public link works while the laptop stays awake and online. A phone
 
 Run one server instance: rooms live in memory and restarts end raids. Disconnects pause the squad up to 30 seconds; private tokens resume heroes after graphics are ready. Timed-out heroes are removed; fewer than two teammates produces failure. Reinforcements may join during Arena/Reality while fewer than four total hero slots are used. Their device adds a realm and waits for its own graphics without pausing the fight.
 
+A delayed reconnect reply preserves your hero and retries automatically. An explicit server rejection (such as an expired room) clears the saved session and shows the reason. Leaving cancels pending recovery.
+
+Each device receives the complete world blueprint when creating, joining or resuming a room. Frequent battle updates carry live state and hero selection indexes, reusing that blueprint to reduce phone bandwidth. Stale updates can be skipped under backpressure; graphics readiness is retried until acknowledged.
+
 Optional container recipe (not executed here):
 
 ```sh
@@ -86,7 +90,7 @@ npm run build
 npm run test:e2e
 ```
 
-The suite passes **90 rules/network/creator/motion tests in ten files**, TypeScript and the production build. **All 11 browser scenarios passed in one combined run (7.7 minutes)**, including two complete human-role matches, four-hero combat, local-camera breach, graphics-ready reconnect, both outcomes/replay, separate device regions, watching/travel, a third live realm, editable 3D blueprints, duplicate-control/no-key errors, hero selection and a custom key reaching combat. Public HTTPS verification passed assets, invitations, private identities, regional travel, live expansion and shared team damage. [Verification details](docs/TEST_PLAN.md).
+The suite passes **134 rules/network/creator/motion tests in twelve files**, TypeScript and the production build. The earlier **11 browser scenarios passed in one combined run (7.7 minutes)**, covering complete matches, four-hero combat, camera breach, reconnect, outcomes, travel, expansion and the creator. Additional regressions exercise the actual generated encounter through a full three-client raid and recover a deliberately lost graphics confirmation. Current run details and the distinction between browser and physical-phone checks are in [the test plan](docs/TEST_PLAN.md) and [live AI verification](docs/LIVE_AI_VERIFICATION.md).
 
 Live OpenAI generation is verified, and the owner reported rendering/gestures working on one phone. Broader physical body/hand recognition, multiple Android/iOS devices, venue networks and Docker remain separate checks. Synthetic camera/landmark tests establish integration. Existing versus-mode screenshots and [the earlier audit](docs/QA_AUDIT.md) are historical evidence; current verification is recorded separately.
 

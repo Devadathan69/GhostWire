@@ -16,17 +16,23 @@ The six physical recognizers map to Strike / Kick / Guard / Evade / Jump / Overd
 
 **Boss:** Thanos, with a purple/gold colossus appearance and two distinct supported attacks: Power Gauntlet: Falling Sun (fire orb, 18 damage, 1.4s warning), and Reality Breach (shadow wave, 24 damage, 1.8s warning). **Environment:** Fractured Manhattan Rooftop, with generated palette, metal ground, rain and eight towers/ruins/crystals outside the playable circle. These are procedural parts and supported mechanics, without actor likenesses or imported movie meshes.
 
+![The saved real generation in the editable 3D preview](screenshots/live-ai-detail.png)
+
 ## Verified behavior
 
-- All **129 unit/network/creator/motion tests** pass, including applying each generated hero's six power definitions to authoritative combat, recognizing every generated gesture mapping from synthetic landmarks and negotiating snapshot compression when supported.
+- All **134 unit/network/creator/motion tests in twelve files** pass, including applying each generated hero's six power definitions to authoritative combat, recognizing every generated gesture mapping from synthetic landmarks, compact-update round trips and negotiating snapshot compression when supported.
 - The exact design completed a **three-client browser raid**: two heroes ready/start, generated keyboard mappings and a touch strike, region travel, late Iron Man reinforcement, scaled boss HP, all three ultimate effects, both named boss warnings, camera-backed Reality Breach, a shared victory and fresh rematch readiness. No server state or outcome was forced.
 - The local full-match run passed in two minutes with zero browser errors. Every generated hero dealt real team damage: Thor 191, Doctor Strange 206 and Iron Man 132 in that run. Actual inputs and authoritative snapshots produced these values; later runs can differ.
 - The owner reported that **Doctor Strange rendered and gestures worked on one physical phone**. An initial physical attempt ended while the laptop hero was idle; zero solo damage is expected under Soul Aegis. This report confirms that phone's rendering/recognition, not an independently observed full physical-device match.
-- A full public HTTPS replay is being checked separately; its final result is recorded in CHANGELOG.md when complete.
+- The **public HTTPS three-client replay passed cleanly in 2.1 minutes**, including all of the above and zero browser errors. In that run Thor dealt 240 damage, Doctor Strange 149 and Iron Man 90; health scaling preserves the boss's remaining fraction when Iron Man joins, so damage totals need not equal the final scaled maximum. The result screenshot was captured at **05:39:24 +05:30**. This exercised the actual temporary phone service, rather than a local-only match.
 
-The first public replay exposed a graphics-readiness wait. The client now retries its first-frame confirmation until the server acknowledges it. Complete snapshots are replaceable under backpressure, and WebSocket compression is negotiated where the connection supports it. Cloudflare's current public edge did not advertise compression in the protocol probe; the direct server negotiation is verified separately. No schema, damage rule or outcome was weakened to pass the replay.
+The first public replay exposed a graphics-readiness wait. The client now retries its first-frame confirmation until the server acknowledges it. Later testing exposed delayed updates when repeating the generated blueprint and every hero's powers at 20Hz. The complete blueprint now arrives on create/join/resume; replaceable live snapshots carry hero selection indexes and reconstruct the same state on each device. The public two-hero probe shrank from **13,454 bytes to 2,901 bytes per snapshot** (about 78% smaller), with a 288ms graphics confirmation and Arena reached normally in that measured run. Tests preserve every live field, selected profile, duplicate display names and standard presets. These are observed samples, not latency guarantees.
 
-The initial browser exercises were corrected to keep heroes moving during inspection, use each hero's generated keys, and travel before remote rescues. Those are test-driving changes, without weakening boss rules or forcing success. Contrasting cape colors now use the secondary costume palette. Synthetic camera/landmarks do not establish every physical device, lighting condition or browser.
+WebSocket compression is negotiated where supported. Cloudflare's current public edge did not advertise it; the direct-server negotiation is verified separately. The compact protocol works without compression. No schema, damage rule or outcome was weakened to pass the replay.
+
+A later public victory exposed a reconnect edge case during rematch. A transient resume timeout previously cleared the saved hero like an explicit server rejection. The client now preserves the identity, pauses controls while recovering and retries; leaving/room closure invalidates stale attempts. The server still decides expiry and identity validity. A browser regression deliberately drops the first real resume message, including the polling-before-WebSocket path, and confirms the same hero/lobby/readiness returns without another slot. It passed in 10.3 seconds.
+
+The initial browser exercises were corrected to keep heroes moving during inspection, use each hero's generated keys, and travel before remote rescues. Those are test-driving changes, without weakening boss rules or forcing success. Contrasting cape colors now use the secondary costume palette. Narrow phone controls use two columns and wrap long power names while preserving the key labels. Synthetic camera/landmarks do not establish every physical device, lighting condition or browser.
 
 ## Repeat the checks
 
@@ -39,6 +45,10 @@ npm run test:e2e:ai
 ```
 
 To exercise an already running HTTPS demo, set `E2E_BASE_URL` to the URL printed by `npm run phone:status`, then run `npm run test:e2e:ai`. The test leaves the source encounter unchanged, uses real application inputs and closes its synthetic rooms afterward.
+
+Run browser commands one at a time. Overlapping Playwright processes can delete each other's default report artifacts. An initial successful public battle hit that report-saving error; the isolated rerun above passed. Use `--output=test-results/public-ai` for a separate report directory when needed.
+
+Generated-run screenshots are saved inside that run's report folder. Copy its `live-ai-*.png` files into `docs/screenshots/` after checking the successful result, rather than overwriting files being reviewed during a run. An intermittent Windows screenshot-file error prompted this separation. Successful evidence is written only after victory and rematch checks pass.
 
 A fresh paid API request is explicitly opt-in. Start/restart the server after changing `.env`; the model must remain `gpt-6.1-sol`:
 
